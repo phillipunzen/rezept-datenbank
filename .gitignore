@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+access.txt
+uploads/
+test-results/
+
+backups/
+__pycache__/
+*.pyc

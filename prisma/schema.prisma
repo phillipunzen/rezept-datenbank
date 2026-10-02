@@ -1,0 +1,681 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum HouseholdRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum RecipeVisibility {
+  HOUSEHOLD
+  PRIVATE
+}
+
+enum RecipeGrantPermission {
+  VIEW
+  EDIT
+}
+
+model User {
+  id                  String                @id @default(cuid()) @db.VarChar(30)
+  email               String                @unique @db.VarChar(254)
+  name                String                @db.VarChar(120)
+  passwordHash        String                @db.VarChar(255)
+  isAdmin             Boolean               @default(false)
+  locale              String                @default("de") @db.VarChar(5)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  sessions            Session[]
+  memberships         HouseholdMember[]
+  recipes             Recipe[]
+  favorites           Favorite[]
+  ratings             Rating[]
+  recipeVersions      RecipeVersion[]
+  sentInvitations     HouseholdInvitation[] @relation("InvitationSender")
+  acceptedInvitations HouseholdInvitation[] @relation("InvitationRecipient")
+  recipeGrants        RecipeGrant[]
+  cookbooks           Cookbook[]
+  planEntries         MealPlanEntry[]
+  shoppingLists       ShoppingList[]
+  cookingHistory      CookingHistory[]
+  importJobs          ImportJob[]
+  shareLinks          ShareLink[]
+  accountStatus       AccountStatus?
+  avatar              ProfileAvatar?
+  resets              PasswordReset[]
+  oidcIdentities      OidcIdentity[]
+  auditEvents         AuditEvent[]
+  publications        RecipePublication[]
+  cookidooConnection  CookidooConnection?
+}
+
+model Session {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  tokenHash String   @unique @db.Char(64)
+  userId    String   @db.VarChar(30)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Household {
+  id                  String                @id @default(cuid()) @db.VarChar(30)
+  name                String                @db.VarChar(120)
+  revision            Int                   @default(1)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  members             HouseholdMember[]
+  recipes             Recipe[]
+  ingredients         Ingredient[]
+  units               Unit[]
+  tags                Tag[]
+  categories          Category[]
+  invitations         HouseholdInvitation[]
+  cookbooks           Cookbook[]
+  planEntries         MealPlanEntry[]
+  shoppingLists       ShoppingList[]
+  importJobs          ImportJob[]
+  importReceipts      ImportReceipt[]
+  cookidooConnections CookidooConnection[]
+}
+
+model HouseholdMember {
+  householdId String        @db.VarChar(30)
+  userId      String        @db.VarChar(30)
+  role        HouseholdRole @default(VIEWER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([householdId, userId])
+  @@index([userId])
+}
+
+model BootstrapLock {
+  id        Int      @id
+  createdAt DateTime @default(now())
+}
+
+model HouseholdInvitation {
+  id           String        @id @default(cuid()) @db.VarChar(30)
+  householdId  String        @db.VarChar(30)
+  inviterId    String        @db.VarChar(30)
+  email        String        @db.VarChar(254)
+  role         HouseholdRole
+  tokenHash    String        @unique @db.Char(64)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?       @db.VarChar(30)
+  revokedAt    DateTime?
+  createdAt    DateTime      @default(now())
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  inviter      User          @relation("InvitationSender", fields: [inviterId], references: [id])
+  acceptedBy   User?         @relation("InvitationRecipient", fields: [acceptedById], references: [id])
+
+  @@index([householdId, email])
+  @@index([inviterId])
+  @@index([acceptedById])
+  @@index([expiresAt])
+}
+
+model Recipe {
+  id             String                  @id @default(cuid()) @db.VarChar(30)
+  householdId    String                  @db.VarChar(30)
+  creatorId      String                  @db.VarChar(30)
+  publication    RecipePublication?
+  visibility     RecipeVisibility        @default(HOUSEHOLD)
+  title          String                  @db.VarChar(200)
+  description    String                  @db.Text
+  servings       Int                     @default(4)
+  prepMinutes    Int                     @default(0)
+  cookMinutes    Int                     @default(0)
+  difficulty     String                  @default("EASY") @db.VarChar(10)
+  vegetarian     Boolean                 @default(false)
+  vegan          Boolean                 @default(false)
+  source         String                  @default("") @db.VarChar(250)
+  sourceUrl      String                  @default("") @db.VarChar(2048)
+  notes          String                  @db.Text
+  revision       Int                     @default(1)
+  deletedAt      DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  household      Household               @relation(fields: [householdId], references: [id])
+  creator        User                    @relation(fields: [creatorId], references: [id])
+  ingredients    RecipeIngredient[]
+  groups         RecipeIngredientGroup[]
+  steps          RecipeStep[]
+  images         RecipeImage[]
+  tags           RecipeTag[]
+  categories     RecipeCategory[]
+  favorites      Favorite[]
+  ratings        Rating[]
+  versions       RecipeVersion[]
+  grants         RecipeGrant[]
+  cookbookLinks  CookbookRecipe[]
+  planEntries    MealPlanEntry[]
+  cookingHistory CookingHistory[]
+  nutrition      RecipeNutrition?
+  allergens      RecipeAllergen[]
+  deviceData     DeviceRecipeData[]
+  importReceipts ImportReceipt[]
+  importResults  ImportResult[]
+  shareLinks     ShareLink[]
+
+  @@index([householdId, deletedAt, updatedAt])
+  @@index([householdId, visibility, creatorId])
+}
+
+model RecipeGrant {
+  recipeId   String                @db.VarChar(30)
+  userId     String                @db.VarChar(30)
+  permission RecipeGrantPermission @default(VIEW)
+  createdAt  DateTime              @default(now())
+  recipe     Recipe                @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, userId])
+  @@index([userId])
+}
+
+model Ingredient {
+  id             String             @id @default(cuid()) @db.VarChar(30)
+  householdId    String             @db.VarChar(30)
+  name           String             @db.VarChar(150)
+  normalizedName String             @db.VarChar(150)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  household      Household          @relation(fields: [householdId], references: [id])
+  recipes        RecipeIngredient[]
+
+  @@unique([householdId, normalizedName])
+}
+
+model Unit {
+  id             String             @id @default(cuid()) @db.VarChar(30)
+  householdId    String             @db.VarChar(30)
+  name           String             @db.VarChar(24)
+  normalizedName String             @db.VarChar(24)
+  dimension      String             @db.VarChar(20)
+  baseFactor     Decimal?           @db.Decimal(12, 4)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  household      Household          @relation(fields: [householdId], references: [id])
+  recipes        RecipeIngredient[]
+
+  @@unique([householdId, normalizedName])
+}
+
+model RecipeIngredientGroup {
+  id          String             @id @default(cuid()) @db.VarChar(30)
+  recipeId    String             @db.VarChar(30)
+  name        String             @db.VarChar(120)
+  position    Int
+  recipe      Recipe             @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+
+  @@unique([recipeId, position])
+}
+
+model RecipeIngredient {
+  id           String                 @id @default(cuid()) @db.VarChar(30)
+  recipeId     String                 @db.VarChar(30)
+  ingredientId String                 @db.VarChar(30)
+  unitId       String?                @db.VarChar(30)
+  groupId      String?                @db.VarChar(30)
+  position     Int
+  amount       Decimal?               @db.Decimal(12, 4)
+  note         String                 @default("") @db.VarChar(250)
+  recipe       Recipe                 @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient             @relation(fields: [ingredientId], references: [id])
+  unit         Unit?                  @relation(fields: [unitId], references: [id])
+  group        RecipeIngredientGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  stepLinks RecipeStepIngredient[]
+
+  @@unique([recipeId, position])
+  @@index([ingredientId])
+  @@index([unitId])
+  @@index([groupId])
+}
+
+model RecipeStep {
+  id              String                 @id @default(cuid()) @db.VarChar(30)
+  recipeId        String                 @db.VarChar(30)
+  position        Int
+  instruction     String                 @db.Text
+  durationSeconds Int?
+  recipe          Recipe                 @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredients     RecipeStepIngredient[]
+
+  @@unique([recipeId, position])
+}
+
+model RecipeImage {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  recipeId   String   @db.VarChar(30)
+  storageKey String   @unique @db.VarChar(80)
+  mimeType   String   @default("image/webp") @db.VarChar(32)
+  bytes      Int
+  createdAt  DateTime @default(now())
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+}
+
+model Tag {
+  id             String      @id @default(cuid()) @db.VarChar(30)
+  householdId    String      @db.VarChar(30)
+  name           String      @db.VarChar(80)
+  normalizedName String      @db.VarChar(80)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  household      Household   @relation(fields: [householdId], references: [id])
+  recipes        RecipeTag[]
+
+  @@unique([householdId, normalizedName])
+}
+
+model RecipeTag {
+  recipeId String @db.VarChar(30)
+  tagId    String @db.VarChar(30)
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id])
+
+  @@id([recipeId, tagId])
+  @@index([tagId])
+}
+
+model Category {
+  id             String           @id @default(cuid()) @db.VarChar(30)
+  householdId    String           @db.VarChar(30)
+  name           String           @db.VarChar(80)
+  normalizedName String           @db.VarChar(80)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  household      Household        @relation(fields: [householdId], references: [id])
+  recipes        RecipeCategory[]
+
+  @@unique([householdId, normalizedName])
+}
+
+model RecipeCategory {
+  recipeId   String   @db.VarChar(30)
+  categoryId String   @db.VarChar(30)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@id([recipeId, categoryId])
+  @@index([categoryId])
+}
+
+model Favorite {
+  recipeId  String   @db.VarChar(30)
+  userId    String   @db.VarChar(30)
+  createdAt DateTime @default(now())
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, userId])
+  @@index([userId])
+}
+
+model Rating {
+  recipeId  String   @db.VarChar(30)
+  userId    String   @db.VarChar(30)
+  value     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, userId])
+  @@index([userId])
+}
+
+model RecipeVersion {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  recipeId  String   @db.VarChar(30)
+  authorId  String   @db.VarChar(30)
+  revision  Int
+  snapshot  Json
+  createdAt DateTime @default(now())
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@unique([recipeId, revision])
+  @@index([authorId])
+}
+
+model Cookbook {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  householdId String           @db.VarChar(30)
+  creatorId   String           @db.VarChar(30)
+  name        String           @db.VarChar(120)
+  description String           @default("") @db.VarChar(2000)
+  revision    Int              @default(1)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  household   Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  creator     User             @relation(fields: [creatorId], references: [id])
+  recipes     CookbookRecipe[]
+
+  @@index([householdId, updatedAt])
+  @@index([creatorId])
+}
+
+model CookbookRecipe {
+  cookbookId String   @db.VarChar(30)
+  recipeId   String   @db.VarChar(30)
+  createdAt  DateTime @default(now())
+  cookbook   Cookbook @relation(fields: [cookbookId], references: [id], onDelete: Cascade)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([cookbookId, recipeId])
+  @@index([recipeId])
+}
+
+model MealPlanEntry {
+  id          String    @id @default(cuid()) @db.VarChar(30)
+  householdId String    @db.VarChar(30)
+  creatorId   String    @db.VarChar(30)
+  recipeId    String    @db.VarChar(30)
+  date        DateTime  @db.Date
+  slot        String    @db.VarChar(12)
+  servings    Int
+  revision    Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  creator     User      @relation(fields: [creatorId], references: [id])
+  recipe      Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([householdId, date])
+  @@index([creatorId])
+  @@index([recipeId])
+}
+
+model ShoppingList {
+  id                 String              @id @default(cuid()) @db.VarChar(30)
+  householdId        String              @db.VarChar(30)
+  creatorId          String              @db.VarChar(30)
+  name               String              @db.VarChar(120)
+  revision           Int                 @default(1)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  household          Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  creator            User                @relation(fields: [creatorId], references: [id])
+  items              ShoppingListItem[]
+  cookidooConnection CookidooConnection?
+
+  @@index([householdId, updatedAt])
+  @@index([creatorId])
+}
+
+model ShoppingListItem {
+  id            String             @id @default(cuid()) @db.VarChar(30)
+  listId        String             @db.VarChar(30)
+  name          String             @db.VarChar(150)
+  mergeKey      String             @db.VarChar(200)
+  amount        Decimal?           @db.Decimal(20, 4)
+  unit          String             @default("") @db.VarChar(24)
+  note          String             @default("") @db.VarChar(2000)
+  checked       Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  list          ShoppingList       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  cookidooLinks CookidooItemLink[]
+
+  @@index([listId, checked, createdAt])
+  @@index([listId, mergeKey])
+}
+
+model CookingHistory {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  userId     String   @db.VarChar(30)
+  recipeId   String   @db.VarChar(30)
+  requestKey String   @db.VarChar(100)
+  cookedAt   DateTime @default(now())
+  servings   Int
+  note       String   @default("") @db.VarChar(2000)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestKey])
+  @@index([userId, cookedAt])
+  @@index([recipeId])
+}
+
+model RecipeNutrition {
+  recipeId      String   @id @db.VarChar(30)
+  calories      Decimal? @db.Decimal(10, 2)
+  carbohydrates Decimal? @db.Decimal(10, 2)
+  fats          Decimal? @db.Decimal(10, 2)
+  proteins      Decimal? @db.Decimal(10, 2)
+  basis         String   @default("SERVING") @db.VarChar(10)
+  source        String   @default("") @db.VarChar(250)
+  recipe        Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model RecipeAllergen {
+  recipeId String @db.VarChar(30)
+  name     String @db.VarChar(80)
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, name])
+}
+
+model RecipeStepIngredient {
+  stepId       String           @db.VarChar(30)
+  ingredientId String           @db.VarChar(30)
+  step         RecipeStep       @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  ingredient   RecipeIngredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@id([stepId, ingredientId])
+  @@index([ingredientId])
+}
+
+model DeviceRecipeData {
+  recipeId    String   @db.VarChar(30)
+  deviceKey   String   @db.VarChar(40)
+  contentHash String   @db.Char(64)
+  data        Json
+  confirmedAt DateTime @default(now())
+  recipe      Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, deviceKey])
+}
+
+model ImportJob {
+  id           String           @id @default(cuid()) @db.VarChar(30)
+  householdId  String           @db.VarChar(30)
+  userId       String           @db.VarChar(30)
+  archiveKey   String           @unique @db.VarChar(80)
+  archiveHash  String           @db.Char(64)
+  status       String           @default("DRAFT") @db.VarChar(12)
+  visibility   RecipeVisibility @default(PRIVATE)
+  targetBookId String?          @db.VarChar(30)
+  preview      Json
+  error        String           @default("") @db.VarChar(1000)
+  runToken     String?          @db.VarChar(64)
+  leaseUntil   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  household    Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results      ImportResult[]
+
+  @@index([status, leaseUntil])
+  @@index([userId, createdAt])
+  @@index([householdId])
+}
+
+model ImportResult {
+  jobId    String    @db.VarChar(30)
+  position Int
+  title    String    @db.VarChar(200)
+  status   String    @db.VarChar(12)
+  message  String    @db.VarChar(1000)
+  recipeId String?   @db.VarChar(30)
+  job      ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  recipe   Recipe?   @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@id([jobId, position])
+  @@index([recipeId])
+}
+
+model ImportReceipt {
+  householdId String    @db.VarChar(30)
+  kind        String    @db.VarChar(20)
+  contentHash String    @db.Char(64)
+  recipeId    String    @db.VarChar(30)
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipe      Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([householdId, kind, contentHash])
+  @@index([recipeId])
+}
+
+model ShareLink {
+  id        String    @id @default(cuid()) @db.VarChar(30)
+  tokenHash String    @unique @db.Char(64)
+  recipeId  String    @db.VarChar(30)
+  userId    String    @db.VarChar(30)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId, createdAt])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AccountStatus {
+  userId   String  @id @db.VarChar(30)
+  disabled Boolean @default(false)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfileAvatar {
+  userId     String   @id @db.VarChar(30)
+  storageKey String   @unique @db.VarChar(80)
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  tokenHash String    @id @db.Char(64)
+  userId    String    @db.VarChar(30)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model OidcIdentity {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  issuer    String   @db.VarChar(500)
+  subject   String   @db.VarChar(255)
+  userId    String   @db.VarChar(30)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([issuer, subject])
+  @@index([userId])
+}
+
+model OidcAttempt {
+  stateHash   String   @id @db.Char(64)
+  browserHash String   @db.Char(64)
+  verifier    String   @db.VarChar(128)
+  nonce       String   @db.VarChar(128)
+  userId      String?  @db.VarChar(30)
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  actorId   String?  @db.VarChar(30)
+  action    String   @db.VarChar(160)
+  targetId  String?  @db.VarChar(30)
+  status    Int
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}
+
+model CookidooConnection {
+  id                String             @id @default(cuid()) @db.VarChar(30)
+  userId            String             @unique @db.VarChar(30)
+  householdId       String             @db.VarChar(30)
+  listId            String             @unique @db.VarChar(30)
+  accountEmail      String             @db.VarChar(254)
+  market            String             @db.VarChar(5)
+  encryptedTokens   String             @db.LongText
+  requested         Boolean            @default(false)
+  paused            Boolean            @default(true)
+  status            String             @default("PENDING") @db.VarChar(12)
+  revision          Int                @default(1)
+  lastSyncedAt      DateTime?
+  nextSyncAt        DateTime           @default(now())
+  runToken          String?            @db.VarChar(64)
+  leaseUntil        DateTime?
+  lastError         String             @default("") @db.VarChar(500)
+  reportJson        Json?
+  pendingJson       Json?
+  resolutionsJson   Json               @default("[]")
+  ignoredLocalJson  Json               @default("[]")
+  ignoredRemoteJson Json               @default("[]")
+  createdAt         DateTime           @default(now())
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household         Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  list              ShoppingList       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  links             CookidooItemLink[]
+
+  @@index([paused, nextSyncAt])
+}
+
+model CookidooItemLink {
+  id             String             @id @default(cuid()) @db.VarChar(30)
+  connectionId   String             @db.VarChar(30)
+  localItemId    String?            @db.VarChar(30)
+  remoteKey      String             @db.VarChar(255)
+  localBaseJson  Json
+  remoteBaseJson Json
+  connection     CookidooConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  localItem      ShoppingListItem?  @relation(fields: [localItemId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, localItemId])
+  @@unique([connectionId, remoteKey])
+}
+
+model RecipePublication {
+  recipeId    String    @id @db.VarChar(30)
+  publisherId String    @db.VarChar(30)
+  publishedAt DateTime?
+  revision    Int       @default(1)
+  recipe      Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  publisher   User      @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@index([publishedAt, recipeId])
+  @@index([publisherId])
+}

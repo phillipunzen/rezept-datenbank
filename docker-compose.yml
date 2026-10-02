@@ -1,0 +1,48 @@
+name: rezeptdatenbank
+services:
+  app:
+    build: .
+    image: rezeptdatenbank:0.8.0
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 130s
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Bitte DATABASE_URL in .env konfigurieren}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+      INITIAL_SETUP_TOKEN: ${INITIAL_SETUP_TOKEN:?Bitte Einrichtungscode in .env setzen}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REGISTRATION_ENABLED: ${OIDC_REGISTRATION_ENABLED:-false}
+      OIDC_LABEL: ${OIDC_LABEL:-Single Sign-On}
+      PUBLIC_CATALOG_ENABLED: ${PUBLIC_CATALOG_ENABLED:-true}
+      COOKIDOO_ENABLED: ${COOKIDOO_ENABLED:-true}
+      COOKIDOO_ALLOW_HTTP: ${COOKIDOO_ALLOW_HTTP:-false}
+      COOKIDOO_ENCRYPTION_KEY: ${COOKIDOO_ENCRYPTION_KEY:-}
+      UPLOAD_DIR: /app/uploads
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8080}:3000'
+    volumes:
+      - uploads:/app/uploads
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+volumes:
+  uploads:

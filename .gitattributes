@@ -1,0 +1,3 @@
+* text=auto eol=lf
+# Preserve the exact Prisma-generated migration text and its applied checksum.
+prisma/migrations/**/migration.sql whitespace=-blank-at-eof
