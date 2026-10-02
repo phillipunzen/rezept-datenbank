@@ -1,56 +1,144 @@
 # Rezeptdatenbank
 
-Version **0.8.0** · Selbst gehostete Rezept-App unter `/opt/rezeptdatenbank` auf SRV-DEV01. Entwicklungsinstanz: **http://192.168.10.70:8080**. Die normale Compose-Datei betreibt nur die App; eine externe MariaDB wird über Environment konfiguriert. Das optionale Entwicklungsprofil ergänzt einen separaten MariaDB-Container mit persistentem Volume.
+Eine selbst gehostete Rezeptverwaltung für Haushalte: Rezepte sammeln, importieren, planen und gemeinsam kochen. Die Oberfläche unterstützt Deutsch und Englisch sowie System-, Hell- und Dunkelmodus.
+
+Die App benötigt eine **eigene MariaDB**. Der normale Docker-Compose-Start betreibt ausschließlich den App-Container. Die Datenbankverbindung wird über `DATABASE_URL` konfiguriert; im App-Image läuft kein MariaDB-Server. Bilder und Importdateien liegen in einem eigenen persistenten Uploadvolume.
 
 ## Funktionen
 
-- Studio-Oberfläche in Deutsch/Englisch; System-, Hell- und Dunkelmodus, Smartphone-Navigation und vollständige Rezeptansichten.
-- Strukturierte Zutaten und Gruppen, skalierte Mengen, sortierbare Schritte mit Zutatenbezug, bis zu acht Bilder, Tags, Kategorien, Favoriten, Bewertungen, Nährwerte und Allergene. Suche, Zutaten-/Bewertungs-/Gerätefilter, Druck, Duplizieren, Versionshistorie mit Wiederherstellung und Papierkorb.
-- Website-Link-Import aus JSON-LD/Microdata mit Rezeptbild und bearbeitbarer Vorschau. JSON-Austausch einschließlich Bildern und bestätigten Geräteparametern. Tandoor-Default-ZIP mit Vorschau, Hintergrundaufträgen, Pause/Abbruch/Wiederaufnahme und Bericht pro Rezept.
-- Haushalte, Rollen und Einladungen; private Rezepte mit gezielten Lese-/Bearbeitungsfreigaben. Auch Administratoren umgehen diese Rechte nicht. Mehrere gemeinsame Rezeptbücher je Rezept.
-- Tages-/Wochenplan, vier Mahlzeiten und Portionen; gemeinsame Einkaufslisten manuell, aus Rezepten oder dem Plan. Exakte Mengenaggregation, Bearbeiten, Löschen, Häkchen und Konfliktprüfung. Persönliche Kochhistorie und Dashboard mit Tagesplan/Favoriten/Zufallsrezept.
-- Kochansicht mit großen Schritten, Zutaten und mehreren Timern, echtem Browser-Vollbild und Wake Lock mit Fallback. Bestätigter TM6-Parametereditor, eigener Geräteexport und Thermomix-Kochansicht. Keine direkte Gerätesteuerung.
-- Öffentlicher durchsuchbarer Rezeptkatalog ohne Anmeldung unter `/entdecken`, mit bewusster Freigabe je Rezept und widerrufbarer Veröffentlichung. Quellenangaben bleiben intern; öffentliche Ansichten/JSON enthalten keine Quellen, persönlichen Notizen oder Kontodaten.
-- Widerrufbare öffentliche Rezeptlinks mit Ablauf und QR-Code; serverseitiges Recipe-JSON-LD. Keine Quellenangaben oder persönlichen Notizen/Bewertungen in öffentlichen Ansichten.
-- Optionaler SMTP-Passwortreset, OIDC mit PKCE und expliziter Kontoverknüpfung, Profilbild, Kontensperren und Aktivitäten/Audit.
-- Verschlüsselte Offline-Küche mit eigener Passphrase: bis zu 30 ausgewählte Rezepte samt Bildern, aktueller Wochenplan, Einkaufslisten und konfliktbewusster Synchronisierung von Häkchen. Suche und bevorzugte Favoritenauswahl. **Browser-Offline-Nutzung erfordert HTTPS oder localhost.**
-- Optionaler **experimenteller Cookidoo-Einkaufslistenabgleich**: persönliche Verbindung zu einer gemeinsamen Liste, lesende Vorschau, ausdrückliche Aktivierung, regelmäßiger beidseitiger Abgleich, Pause und Konfliktentscheidungen. Freie Einträge unterstützen Erstellen/Ändern/Abhaken/Löschen; Rezeptzutaten nur Abhaken. Inoffizielle Schnittstelle; noch kein Test mit einem echten Benutzerkonto. Details: [Cookidoo](docs/COOKIDOO_SYNC.md).
+- Rezepte mit Zutaten, Gruppen, skalierten Mengen, geordneten Schritten, Bildern, Tags, Kategorien, Nährwerten und Allergenen. Favoriten, Bewertungen, Suche, Druck, Duplizieren, Versionshistorie und Papierkorb.
+- Website-Link-Import aus JSON-LD/Microdata mit Bild und bearbeitbarer Vorschau. JSON-Import/Export sowie Tandoor-Default-ZIP mit Vorschau, Hintergrundimport und Ergebnisbericht.
+- Haushalte mit Rollen, Einladungen und gezielten Freigaben für private Rezepte. Gemeinsame Rezeptbücher, Tages-/Wochenplanung und Einkaufslisten mit Mengenaggregation und Konfliktprüfung.
+- Kochmodus mit großen Schritten, Timern, Vollbild und Wake Lock. Persönliche Kochhistorie, bestätigte TM6-Parameter und eigener Geräteexport; keine direkte Gerätesteuerung.
+- Öffentlicher Rezeptkatalog ohne Anmeldung unter `/entdecken` und widerrufbare Rezeptlinks mit QR-Code und Recipe-JSON-LD.
+- Optionaler SMTP-Passwortreset, OIDC-Anmeldung, Profilbild, Kontensperren und Aktivitätenprotokoll.
+- Verschlüsselte Offline-Küche für ausgewählte Rezepte, Wochenplan und Einkaufslisten. Offline-Funktionen und Wake Lock benötigen HTTPS oder localhost.
+- Optionaler experimenteller Cookidoo-Einkaufslistenabgleich mit ausdrücklicher Aktivierung und Konfliktentscheidungen. Er verwendet eine inoffizielle Schnittstelle; ein Test mit einem echten Cookidoo-Konto steht noch aus. [Details](docs/COOKIDOO_SYNC.md).
 
-## Betrieb über Environment
+## Öffentliche Rezepte
+
+Rezept-Ersteller können unter **Öffentlich sichtbar → Öffentlich veröffentlichen** einzelne Rezepte freigeben. Besucher finden sie ohne Anmeldung unter `/entdecken` und sehen Zutaten, Schritte und Bilder. Spätere Rezeptänderungen sind ebenfalls öffentlich sichtbar.
+
+Quellenname, Quell-URL, Nährwertquelle, persönliche Notizen und Kontodaten bleiben aus öffentlichen Ansichten und API-Antworten ausgeschlossen. Intern gespeicherte Quellen bleiben erhalten. Selbst geschriebene Rezepttexte werden nicht automatisch redigiert.
+
+Neue und bestehende Rezepte sind zunächst unveröffentlicht. Widerruf, Papierkorb, Sichtbarkeitswechsel oder Haushaltsaustritt nehmen eine Veröffentlichung zurück. Wiederherstellen veröffentlicht nicht erneut. Katalog und unaufgelistete Linkfreigaben werden unabhängig verwaltet. Mit `PUBLIC_CATALOG_ENABLED=false` lässt sich der gesamte Katalog abschalten.
+
+## API und Entwicklung
+
+- API-Dokumentation: `/api/v1/docs`, OpenAPI: `/api/v1/docs/json`.
+- Liveness: `/api/v1/health/live`, Datenbank-Readiness: `/api/v1/health/ready`.
+- Versions-/Installationsstatus: `/api/v1/system`.
+
+Schreibende Anfragen benötigen `Origin: <APP_ORIGIN>` und eine passende Session; veraltete Änderungen liefern HTTP 409. Das Backend ist nur innerhalb des App-Containers erreichbar. Node und Python für den optionalen Cookidoo-Adapter sind im Docker-Image enthalten.
+
+Hinweise zum lokalen Entwickeln und zur ausdrücklich optionalen Testdatenbank: [Entwicklung](docs/DEVELOPMENT.md). Für die normale Installation ist diese Entwicklungsdatenbank nicht erforderlich.
+
+[Architektur](docs/ARCHITECTURE.md) · [Datenmodell](docs/DATABASE.md) · [Tandoor](docs/TANDOOR_IMPORT.md) · [Thermomix](docs/THERMOMIX.md) · [Cookidoo](docs/COOKIDOO_SYNC.md) · [Sicherheit](docs/SECURITY.md) · [Backup/Restore](docs/BACKUP.md) · [Prüfnachweise](docs/VALIDATION.md)
+
+## Installation
+
+### 1. Voraussetzungen
+
+- Ein Server mit Docker Engine und dem Docker-Compose-Plugin (`docker compose`).
+- Git zum Herunterladen der Quellen.
+- Eine vorhandene MariaDB, die vom App-Container aus erreichbar ist. Mit MariaDB 11.8 getestet.
+- Eine eigene Datenbank und ein Benutzer mit Rechten auf diese Datenbank. Beim Start führt die App automatisch versionierte Migrationen aus; dafür benötigt der Benutzer auch Rechte zum Anlegen und Ändern der Tabellen.
+- Optional ein eigener Reverseproxy für HTTPS.
+
+Die App kann auf einem anderen Server als die Datenbank laufen. Die Datenbank darf auch direkt auf dem Docker-Host installiert sein. Ein MariaDB-Container ist für die Installation nicht nötig.
+
+### 2. Datenbank vorbereiten
+
+Auf deinem MariaDB-Server mit einem administrativen DB-Konto ausführen; Passwort durch einen eigenen Wert ersetzen:
+
+```sql
+CREATE DATABASE rezeptdatenbank
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'rezeptdatenbank'@'%' IDENTIFIED BY 'CHANGE_ME_TO_A_STRONG_PASSWORD';
+GRANT ALL PRIVILEGES ON rezeptdatenbank.* TO 'rezeptdatenbank'@'%';
+```
+
+Der Benutzer erhält Rechte auf die App-Datenbank, keine globalen Administrationsrechte. Du kannst `%` durch den passenden zugelassenen Quellhost ersetzen. MariaDB muss Verbindungen aus dem App-Netz zulassen; Listener, Benutzer-Hostregel und Firewall entsprechend konfigurieren. [MariaDB: CREATE USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user).
+
+### 3. Quellen herunterladen
+
+```bash
+git clone https://github.com/phillipunzen/rezept-datenbank.git
+cd rezept-datenbank
+cp .env.example .env
+chmod 600 .env
+```
+
+Der Installationspfad ist frei wählbar. Erzeuge anschließend einen Einrichtungscode, beispielsweise mit:
+
+```bash
+openssl rand -hex 32
+```
+
+### 4. Environment konfigurieren
+
+Öffne `.env`, ersetze die Platzhalter und trage den erzeugten Einrichtungscode ein:
 
 ```dotenv
-DATABASE_URL=mysql://appuser:URL_ENCODED_PASSWORD@db.example.internal:3306/rezeptdatenbank
-APP_ORIGIN=http://192.168.10.70:8080
+DATABASE_URL=mysql://rezeptdatenbank:URL_ENCODED_PASSWORD@db.example.internal:3306/rezeptdatenbank
+APP_ORIGIN=http://localhost:8080
 APP_PORT=8080
 APP_BIND_ADDRESS=0.0.0.0
+INITIAL_SETUP_TOKEN=PASTE_YOUR_GENERATED_SETUP_TOKEN_HERE
 COOKIE_SECURE=false
 TRUST_PROXY=false
-INITIAL_SETUP_TOKEN=YOUR_RANDOM_64_HEX_CHARACTERS
 REGISTRATION_ENABLED=false
 PUBLIC_CATALOG_ENABLED=true
-COOKIDOO_ENABLED=true
-COOKIDOO_ALLOW_HTTP=false
 ```
 
-Dedizierte DB und Benutzer vorher anlegen. Zugangsdaten in der URL encodieren; für DB-TLS Prisma-Verbindungsparameter und CA-Mount verwenden. Die App führt beim Start versionierte Migrationen aus. Keine Datenbank und kein SQLite-Ersatz innerhalb der App. Bei einer neuen Installation `.env.example` kopieren, `.env` auf 0600 setzen und den Einrichtungscode mit `openssl rand -hex 32` erzeugen. Vorhandene Installation weiterverwenden; kein erneuter Bootstrap. Private Zugangsinformationen stehen in `access.txt` (0600).
+`DATABASE_URL` verwendet auch für MariaDB das Schema `mysql://`. Benutzername und Passwort müssen URL-encodiert sein: beispielsweise `@` als `%40`, `#` als `%23` und `$` als `%24`. Bei entfernten Datenbanken trägst du deren tatsächlichen DNS-Namen oder IP-Adresse ein; für DB-TLS siehe die [Prisma-Verbindungsparameter](https://www.prisma.io/docs/orm/v6/overview/databases/mysql#connection-details).
+
+**MariaDB direkt auf demselben Server:** Verwende in `DATABASE_URL` den Hostnamen `host.docker.internal`, zum Beispiel:
+
+```dotenv
+DATABASE_URL=mysql://rezeptdatenbank:URL_ENCODED_PASSWORD@host.docker.internal:3306/rezeptdatenbank
+```
+
+Die Compose-Datei stellt die Hostzuordnung bereit. `localhost` innerhalb des Containers bezeichnet den App-Container. Eine MariaDB, die auf dem Host ausschließlich an `127.0.0.1` lauscht, ist dadurch noch nicht erreichbar; sie muss auch auf der passenden, aus Docker erreichbaren Hostadresse lauschen. Bei Docker Desktop steht `host.docker.internal` ebenfalls für den Host. [Docker: Hostzuordnung](https://docs.docker.com/reference/cli/docker/container/run/#add-host).
+
+`APP_ORIGIN` muss exakt der Adresse entsprechen, unter der du die App im Browser öffnest. Für einen Server mit IP und Port beispielsweise `http://SERVER_IP:8080`; `localhost` passt nur beim Zugriff auf dem eigenen Rechner. Für HTTPS die Einstellungen im nächsten Abschnitt verwenden.
+
+`APP_PORT` bestimmt den Port auf dem Docker-Host. `APP_BIND_ADDRESS=127.0.0.1` beschränkt den Zugriff auf den Host, etwa für einen dort laufenden Reverseproxy; `0.0.0.0` erlaubt Verbindungen über dessen Netzwerkschnittstellen.
+
+### 5. App starten
 
 ```bash
-cd /opt/rezeptdatenbank
 docker compose up -d --build
+docker compose ps
 ```
 
-Aktuelles Entwicklungsprofil:
+Dieser Befehl startet **nur den Service `app`**. Es gibt in der normalen Compose-Datei keinen Datenbank-Service, kein Datenbankvolume und keine Abhängigkeit von einem MariaDB-Container. Du kannst die Services vorab prüfen:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose config --services
+# Ausgabe: app
 ```
 
-Nur die App veröffentlicht einen Port. Projekt und Volumes heißen `rezeptdatenbank`, `rezeptdatenbank_uploads` und im Entwicklungsprofil `rezeptdatenbank_mariadb_data`. Weitere Projekte bleiben unabhängig. Uploadvolume enthält Rezept-/Profilbilder, Importarchive und gegebenenfalls den separaten Cookidoo-Verschlüsselungsschlüssel.
+Der erste Build lädt die benötigten Abhängigkeiten. Anschließend werden Migrationen gegen deine konfigurierte MariaDB ausgeführt. Bei einer nicht erreichbaren Datenbank startet die App nicht erfolgreich; es wird keine Ersatzdatenbank angelegt.
 
-### Eigener Reverseproxy
+Status und Startfehler prüfen:
 
-Der Benutzer betreibt den Reverseproxy selbst. Kein eingebauter TLS-Server oder festgelegter Domainname nötig. Nach dessen Einrichtung ändern:
+```bash
+docker compose logs --tail=100 app
+curl -f http://localhost:8080/api/v1/health/ready
+```
+
+Adresse und Port gegebenenfalls anpassen. Eine erfolgreiche Readiness-Antwort enthält `"database":"connected"`.
+
+### 6. Erstes Konto einrichten
+
+Öffne `APP_ORIGIN` im Browser. Bei einer leeren Datenbank erscheint die Ersteinrichtung. Trage den Einrichtungscode aus `.env` ein und lege dein Administratorkonto sowie den ersten Haushalt an.
+
+Die Einrichtung ist einmalig. Eine bestehende Installation verwendet ihre bisherigen Konten und Daten weiter. Öffentliche Registrierung bleibt standardmäßig deaktiviert; weitere Personen können über Haushaltseinladungen hinzukommen.
+
+### 7. HTTPS und optionale Dienste
+
+Für einen eigenen Reverseproxy `.env` anpassen:
 
 ```dotenv
 APP_ORIGIN=https://rezepte.example.de
@@ -59,49 +147,37 @@ TRUST_PROXY=true
 COOKIDOO_ALLOW_HTTP=false
 ```
 
-Danach den App-Container neu erstellen. Proxy leitet Host, X-Forwarded-Proto und X-Forwarded-For weiter und erlaubt Archivuploads bis 65 MiB. `APP_ORIGIN` muss der Browseradresse exakt entsprechen, einschließlich Schema und gegebenenfalls Port. API und angemeldete Seiten nicht cachen. `TRUST_PROXY=true` nur bei kontrollierter vorgeschalteter Infrastruktur verwenden; App-Bindadresse passend zur Proxy-Anbindung wählen. Offline/Wake Lock werden erst im sicheren Browserkontext verfügbar; Environment kann diese Browserbedingung nicht ersetzen.
-
-Cookidoo-Anmeldung über Entwicklungs-HTTP kann ausdrücklich mit `COOKIDOO_ALLOW_HTTP=true` zugelassen werden. Das Formular zeigt die unverschlüsselte Strecke Browser–App und verlangt eine zusätzliche Bestätigung. Der App–Cookidoo-Verkehr erfolgt weiterhin über HTTPS. Für Betrieb hinter HTTPS den Entwicklungswert wieder deaktivieren.
-
-### Externe Datenbank später umstellen
-
-1. App-Schreibzugriffe stoppen und DB, vollständiges Uploadvolume sowie private Konfiguration sichern.
-2. Dump in eine dedizierte externe MariaDB einspielen. Uploadvolume und Cookidoo-Schlüssel erhalten.
-3. Nur `DATABASE_URL` und erforderliche DB-TLS-Mounts ändern, dann die normale Compose-Datei verwenden.
-4. `docker compose up -d --no-build --force-recreate app`; Readiness, Anmeldung und Rezepte prüfen.
-5. Erst nach erfolgreicher Prüfung den Entwicklungs-DB-Service stoppen; Datenvolume für Rückfall behalten.
-
-Eine geänderte URL kopiert keine Daten. `down -v` löscht persistente Daten. Anleitung und erprobter Restore: [Backup](docs/BACKUP.md).
-
-### Optionale Dienste
-
-SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`. Ohne SMTP_HOST ist E-Mail-Reset deaktiviert. Einladungen werden als Links weitergegeben; kein automatischer Einladungsmailversand.
-
-OIDC: `OIDC_ISSUER` (HTTPS), `OIDC_CLIENT_ID`, optional `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `OIDC_REGISTRATION_ENABLED`. Callback: `APP_ORIGIN/api/v1/auth/oidc/callback`. Gleiche E-Mail verknüpft bestehende Konten nicht automatisch; angemeldet explizit verbinden. SMTP/OIDC sind auf der Entwicklungsinstanz noch nicht konfiguriert.
-
-Cookidoo: `COOKIDOO_ENABLED`, `COOKIDOO_ALLOW_HTTP`, optional `COOKIDOO_ENCRYPTION_KEY` (64 Hexzeichen). Ohne expliziten Schlüssel wird einmalig eine private Schlüsseldatei im Uploadvolume erzeugt. Anmeldung erfolgt im Einkaufslistenformular; Passwort wird nicht gespeichert. Eigene öffentliche Rezeptlinks und Geräte-JSON sind **keine nachgewiesenen Cookidoo-Rezeptimportformate**.
-
-## Öffentliche Rezepte
-
-`/entdecken` kann ohne Login geöffnet werden; auf der Anmeldeseite führt „Rezepte entdecken“ dorthin. Der Rezept-Ersteller öffnet ein Rezept und wählt unter **Öffentlich sichtbar → Öffentlich veröffentlichen** die bewusste Freigabe. Zutaten, Schritte und Bilder sowie spätere Rezeptänderungen sind öffentlich sichtbar. Quellenname, Quell-URL und Nährwertquelle bleiben intern gespeichert und fehlen auch in öffentlichen API-/JSON-LD-Antworten. Angaben im selbst geschriebenen Rezepttext werden nicht automatisch entfernt.
-
-Bestehende und neue Rezepte sind zunächst unveröffentlicht. **Veröffentlichung zurücknehmen** entfernt das Rezept aus dem Katalog und sperrt öffentliche Bildabrufe. Papierkorb, Sichtbarkeitswechsel oder Haushaltsaustritt nehmen die Veröffentlichung ebenfalls zurück; Wiederherstellen veröffentlicht nicht erneut. Unaufgelistete Linkfreigabe und Katalogveröffentlichung sind unabhängig. Mit `PUBLIC_CATALOG_ENABLED=false` und Neuerstellen des Containers wird der gesamte Katalog abgeschaltet; bestehende Linkfreigaben bleiben separat verwaltbar. Compose aktiviert den Katalog standardmäßig, direkter Backend-Start nur mit expliziter Variable. Der aktuelle LAN-Zugang ist von erreichbaren Geräten nutzbar; Internetzugriff hängt vom eigenen Reverseproxy ab.
-
-## API und Entwicklung
-
-Swagger: `/api/v1/docs`, OpenAPI: `/api/v1/docs/json`. Health: `/api/v1/health/live`, `/api/v1/health/ready`; Version/Installationsstatus: `/api/v1/system`. Schreibende Requests brauchen `Origin: <APP_ORIGIN>`, JSON bzw. die dokumentierten Multipart-Endpunkte; HttpOnly-Session authentifiziert den Benutzer. Bei Paralleländerungen HTTP 409. Backend nur intern auf 127.0.0.1:3001, Next auf Containerport 3000.
-
-Node **22**, Docker/Compose; Python **3.13** mit gepinntem `cookidoo-api==0.18.4` ist für den optionalen Adapter bereits im App-Image. Keine zusätzliche SSH-/Hostinstallation nötig. npm-Lockfile sowie Docker-Basisimages sind festgehalten.
+Danach den App-Container neu erstellen:
 
 ```bash
-npm ci
-npx prisma generate
-npm run typecheck
-npm test
-./scripts/test-integration.sh
-./scripts/test-e2e.sh
+docker compose up -d --no-build --force-recreate app
 ```
 
-API-Prüfungen isolieren jeden Workflow in `rezeptdatenbank_test`. Browserprüfungen nutzen `rezeptdatenbank_e2e`, einen temporären Container auf 127.0.0.1:8081 und Chromium. Beide Skripte setzen ausschließlich benannte Testdatenbanken zurück. Der Offline-Test markiert nur seinen Testorigin explizit als sicher; normale LAN-HTTP-Prüfungen testen den echten unsicheren Browserkontext. Artefakte und Secrets werden nicht eingecheckt.
+Der Reverseproxy leitet an den App-Port weiter und übergibt Host, `X-Forwarded-Proto` und `X-Forwarded-For`. Für Tandoor-Archive sollte er Uploads bis 65 MiB erlauben. API, angemeldete Seiten und widerrufbare Rezeptansichten nicht zwischenspeichern. `TRUST_PROXY=true` setzt eine kontrollierte Proxy-Anbindung voraus.
 
-[Architektur](docs/ARCHITECTURE.md) · [Datenmodell](docs/DATABASE.md) · [Tandoor](docs/TANDOOR_IMPORT.md) · [Thermomix](docs/THERMOMIX.md) · [Cookidoo](docs/COOKIDOO_SYNC.md) · [Sicherheit](docs/SECURITY.md) · [Status](docs/IMPLEMENTATION_STATUS.md) · [Prüfnachweise](docs/VALIDATION.md)
+Weitere Einstellungen stehen in `.env.example`:
+
+| Funktion | Environment |
+| --- | --- |
+| Öffentlicher Katalog | `PUBLIC_CATALOG_ENABLED` |
+| Öffentliche Registrierung | `REGISTRATION_ENABLED` |
+| Passwortreset per E-Mail | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` |
+| OIDC-Anmeldung | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, optional `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `OIDC_REGISTRATION_ENABLED` |
+| Cookidoo-Einkaufslisten | `COOKIDOO_ENABLED`, `COOKIDOO_ALLOW_HTTP`, optional `COOKIDOO_ENCRYPTION_KEY` |
+
+Ohne SMTP-Konfiguration ist der E-Mail-Passwortreset deaktiviert. Einladungen werden als Links weitergegeben. OIDC benötigt einen HTTPS-Issuer; die Callback-Adresse ist `APP_ORIGIN/api/v1/auth/oidc/callback`.
+
+Cookidoo ist optional und experimentell. Das Passwort wird nicht gespeichert. Ohne expliziten Verschlüsselungsschlüssel erzeugt die App eine private Schlüsseldatei im Uploadvolume; diese muss mitgesichert werden. HTTP-Anmeldung lässt sich für Entwicklung ausdrücklich mit `COOKIDOO_ALLOW_HTTP=true` freigeben, für HTTPS bleibt der Wert `false`. Eigene Rezeptlinks und Geräteexporte sind keine nachgewiesenen Cookidoo-Rezeptimportformate.
+
+### 8. Aktualisieren, sichern oder Datenbank wechseln
+
+Vor einem Update Datenbank, vollständiges Uploadvolume, private Konfiguration und bisherigen Image-/Versionsstand sichern. Die Uploads enthalten Bilder, Importarchive und gegebenenfalls den Cookidoo-Schlüssel. [Backup und Restore](docs/BACKUP.md).
+
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
+
+Bei einem Wechsel der MariaDB zuerst App-Schreibzugriffe stoppen, die Datenbank sichern und den Dump in die neue dedizierte Datenbank einspielen. Uploads und Verschlüsselungsschlüssel erhalten. Danach `DATABASE_URL` ändern und den App-Container neu erstellen. Eine andere URL kopiert keine vorhandenen Daten.
+
+Das persistente Volume `rezeptdatenbank_uploads` bleibt bei einem normalen Containerwechsel erhalten. `docker compose down -v` entfernt dieses Volume und damit die Uploads.

@@ -1,3 +1,4 @@
+# Normaler Betrieb: nur die App; DATABASE_URL verweist auf eine vorhandene MariaDB.
 name: rezeptdatenbank
 services:
   app:
@@ -31,6 +32,8 @@ services:
       COOKIDOO_ENCRYPTION_KEY: ${COOKIDOO_ENCRYPTION_KEY:-}
       UPLOAD_DIR: /app/uploads
       LOG_LEVEL: ${LOG_LEVEL:-info}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       - '${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8080}:3000'
     volumes:

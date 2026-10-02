@@ -1,3 +1,4 @@
+# Nur für ausdrückliche Entwicklung/Tests; nicht für die normale Installation nötig.
 services:
   app:
     depends_on:
