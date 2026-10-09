@@ -42,6 +42,8 @@ Für einen reproduzierbaren Betrieb `APP_IMAGE` auf den Digest aus der Actions-Z
 
 ## Image-Zugriff
 
+Das Package dieses Repositories ist öffentlich: `docker compose pull app` funktioniert ohne GitHub-Anmeldung (am 09.10.2026 geprüft).
+
 GitHub legt ein neues Container-Package zunächst **privat** an. Für anonymes `docker compose pull` stellt der Repository-Eigentümer nach der ersten Veröffentlichung unter **Packages → rezept-datenbank → Package settings → Change visibility** das Package auf **Public**. Ein öffentliches Repository allein macht das Package nicht öffentlich. [GitHub: Registry-Zugriff und Sichtbarkeit](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
 Für ein privates Package stattdessen am Zielserver anmelden:
