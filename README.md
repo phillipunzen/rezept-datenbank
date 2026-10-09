@@ -2,6 +2,8 @@
 
 Eine selbst gehostete Rezeptverwaltung für Haushalte: Rezepte sammeln, importieren, planen und gemeinsam kochen. Die Oberfläche unterstützt Deutsch und Englisch sowie System-, Hell- und Dunkelmodus.
 
+Das fertige Docker-Image wird unter **`ghcr.io/phillipunzen/rezept-datenbank:latest`** bereitgestellt (Linux/amd64).
+
 Die App benötigt eine **eigene MariaDB**. Der normale Docker-Compose-Start betreibt ausschließlich den App-Container. Die Datenbankverbindung wird über `DATABASE_URL` konfiguriert; im App-Image läuft kein MariaDB-Server. Bilder und Importdateien liegen in einem eigenen persistenten Uploadvolume.
 
 ## Funktionen
@@ -40,7 +42,8 @@ Hinweise zum lokalen Entwickeln und zur ausdrücklich optionalen Testdatenbank: 
 ### 1. Voraussetzungen
 
 - Ein Server mit Docker Engine und dem Docker-Compose-Plugin (`docker compose`).
-- Git zum Herunterladen der Quellen.
+- `curl` zum Herunterladen der Compose-Datei und Konfiguration; alternativ Git zum Klonen des Repositories.
+- Linux/amd64 für das vorgefertigte Image.
 - Eine vorhandene MariaDB, die vom App-Container aus erreichbar ist. Mit MariaDB 11.8 getestet.
 - Eine eigene Datenbank und ein Benutzer mit Rechten auf diese Datenbank. Beim Start führt die App automatisch versionierte Migrationen aus; dafür benötigt der Benutzer auch Rechte zum Anlegen und Ändern der Tabellen.
 - Optional ein eigener Reverseproxy für HTTPS.
@@ -60,12 +63,13 @@ GRANT ALL PRIVILEGES ON rezeptdatenbank.* TO 'rezeptdatenbank'@'%';
 
 Der Benutzer erhält Rechte auf die App-Datenbank, keine globalen Administrationsrechte. Du kannst `%` durch den passenden zugelassenen Quellhost ersetzen. MariaDB muss Verbindungen aus dem App-Netz zulassen; Listener, Benutzer-Hostregel und Firewall entsprechend konfigurieren. [MariaDB: CREATE USER](https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user).
 
-### 3. Quellen herunterladen
+### 3. Compose-Datei und Konfiguration herunterladen
 
 ```bash
-git clone https://github.com/phillipunzen/rezept-datenbank.git
+mkdir rezept-datenbank
 cd rezept-datenbank
-cp .env.example .env
+curl -fL https://raw.githubusercontent.com/phillipunzen/rezept-datenbank/main/docker-compose.yml -o docker-compose.yml
+curl -fL https://raw.githubusercontent.com/phillipunzen/rezept-datenbank/main/.env.example -o .env
 chmod 600 .env
 ```
 
@@ -80,6 +84,7 @@ openssl rand -hex 32
 Öffne `.env`, ersetze die Platzhalter und trage den erzeugten Einrichtungscode ein:
 
 ```dotenv
+APP_IMAGE=ghcr.io/phillipunzen/rezept-datenbank:latest
 DATABASE_URL=mysql://rezeptdatenbank:URL_ENCODED_PASSWORD@db.example.internal:3306/rezeptdatenbank
 APP_ORIGIN=http://localhost:8080
 APP_PORT=8080
@@ -108,7 +113,8 @@ Die Compose-Datei stellt die Hostzuordnung bereit. `localhost` innerhalb des Con
 ### 5. App starten
 
 ```bash
-docker compose up -d --build
+docker compose pull app
+docker compose up -d
 docker compose ps
 ```
 
@@ -119,7 +125,7 @@ docker compose config --services
 # Ausgabe: app
 ```
 
-Der erste Build lädt die benötigten Abhängigkeiten. Anschließend werden Migrationen gegen deine konfigurierte MariaDB ausgeführt. Bei einer nicht erreichbaren Datenbank startet die App nicht erfolgreich; es wird keine Ersatzdatenbank angelegt.
+`docker compose pull` lädt das fertige Image; Node, Python und ein lokaler Quellcode-Build werden für die Installation nicht benötigt. Beim App-Start werden Migrationen gegen deine konfigurierte MariaDB ausgeführt. Bei einer nicht erreichbaren Datenbank startet die App nicht erfolgreich; es wird keine Ersatzdatenbank angelegt.
 
 Status und Startfehler prüfen:
 
@@ -129,6 +135,8 @@ curl -f http://localhost:8080/api/v1/health/ready
 ```
 
 Adresse und Port gegebenenfalls anpassen. Eine erfolgreiche Readiness-Antwort enthält `"database":"connected"`.
+
+Wenn GHCR beim Download `denied` meldet, siehe [Image-Zugriff und Veröffentlichung](docs/DOCKER_IMAGE.md). Für ein öffentliches Package ist keine Anmeldung erforderlich; ein privates Package benötigt eine GitHub-Anmeldung am Registry.
 
 ### 6. Erstes Konto einrichten
 
@@ -174,10 +182,26 @@ Cookidoo ist optional und experimentell. Das Passwort wird nicht gespeichert. Oh
 Vor einem Update Datenbank, vollständiges Uploadvolume, private Konfiguration und bisherigen Image-/Versionsstand sichern. Die Uploads enthalten Bilder, Importarchive und gegebenenfalls den Cookidoo-Schlüssel. [Backup und Restore](docs/BACKUP.md).
 
 ```bash
-git pull --ff-only
-docker compose up -d --build
+docker compose pull app
+docker compose up -d
 ```
 
 Bei einem Wechsel der MariaDB zuerst App-Schreibzugriffe stoppen, die Datenbank sichern und den Dump in die neue dedizierte Datenbank einspielen. Uploads und Verschlüsselungsschlüssel erhalten. Danach `DATABASE_URL` ändern und den App-Container neu erstellen. Eine andere URL kopiert keine vorhandenen Daten.
 
+Für einen festen Versionsstand lässt sich `APP_IMAGE` auf einen veröffentlichten `sha-…`-Tag oder einen Image-Digest (`ghcr.io/phillipunzen/rezept-datenbank@sha256:…`) setzen. `latest` folgt dem letzten erfolgreich geprüften Build von `main`. Versions-Tags entstehen bei Git-Tags wie `v0.8.0`. [Image-Build und Tags](docs/DOCKER_IMAGE.md).
+
 Das persistente Volume `rezeptdatenbank_uploads` bleibt bei einem normalen Containerwechsel erhalten. `docker compose down -v` entfernt dieses Volume und damit die Uploads.
+
+### Optional: Image selbst bauen
+
+Für einen eigenen Build das vollständige Repository klonen, `.env` konfigurieren und den Build-Override verwenden:
+
+```bash
+git clone https://github.com/phillipunzen/rezept-datenbank.git
+cd rezept-datenbank
+cp .env.example .env
+# DATABASE_URL, APP_ORIGIN und INITIAL_SETUP_TOKEN anpassen.
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+Auch dieser Start benötigt eine eigene MariaDB und ergänzt keinen Datenbank-Service. Die ausdrücklich optionale Entwicklungsdatenbank steht separat in [DEVELOPMENT.md](docs/DEVELOPMENT.md).

@@ -1,6 +1,6 @@
 # Entwicklung und Tests
 
-Der normale Betrieb verwendet eine vorhandene MariaDB und startet mit `docker compose up -d --build` nur die App. Die folgende Datenbank ist ausdrücklich optional und ausschließlich für die Entwicklung gedacht.
+Der normale Betrieb verwendet eine vorhandene MariaDB und startet mit `docker compose pull app` / `docker compose up -d` nur die App. Die folgende Datenbank ist ausdrücklich optional und ausschließlich für die Entwicklung gedacht.
 
 ## Separater Entwicklungs-Checkout
 
@@ -30,3 +30,7 @@ npm test
 Die Docker-Testskripte erwarten das oben beschriebene Entwicklungsprofil und den standardmäßigen Compose-Projektnamen `rezeptdatenbank`. Sie verwenden ausschließlich die ausdrücklich benannten Datenbanken `rezeptdatenbank_test` und `rezeptdatenbank_e2e`. Jeder API-Workflow erhält isolierte Daten; Browserprüfungen laufen in einem temporären App-Container auf 127.0.0.1:8081. Das Offline-Szenario markiert nur seinen Testorigin als sicheren Browserkontext.
 
 SQL-/Restore-Prüfungen verwenden ebenfalls ausschließlich isolierte Testdatenbanken und ein separates Uploadvolume. Einzelheiten stehen in [Backup/Restore](BACKUP.md) und [Prüfnachweise](VALIDATION.md). Zugangsdaten, Uploads, Screenshots und Testartefakte gehören nicht in Git.
+
+## Lokaler Build mit eigener MariaDB
+
+`docker-compose.build.yml` ergänzt ausschließlich den lokalen App-Build. Mit `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build` wird ein lokales `rezeptdatenbank:0.8.0` gebaut und an die in DATABASE_URL konfigurierte Datenbank angeschlossen. Es wird kein DB-Service gestartet. Die normale Compose-Datei verwendet das veröffentlichte GHCR-Image.

@@ -1,6 +1,8 @@
 # Nur für ausdrückliche Entwicklung/Tests; nicht für die normale Installation nötig.
 services:
   app:
+    build: .
+    image: rezeptdatenbank:0.8.0
     depends_on:
       mariadb:
         condition: service_healthy

@@ -2,8 +2,7 @@
 name: rezeptdatenbank
 services:
   app:
-    build: .
-    image: rezeptdatenbank:0.8.0
+    image: ${APP_IMAGE:-ghcr.io/phillipunzen/rezept-datenbank:latest}
     restart: unless-stopped
     init: true
     stop_grace_period: 130s

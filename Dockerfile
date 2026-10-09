@@ -13,6 +13,9 @@ RUN npm run build && npm prune --omit=dev
 
 FROM node:22.22.2-bookworm-slim@sha256:9f6d5975c7dca860947d3915877f85607946403fc55349f39b4bc3688448bb6e AS runtime
 WORKDIR /app
+LABEL org.opencontainers.image.source="https://github.com/phillipunzen/rezept-datenbank" \
+      org.opencontainers.image.title="Rezeptdatenbank" \
+      org.opencontainers.image.description="Self-hosted recipe manager using an external MariaDB"
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates libbz2-1.0 libexpat1 libffi8 liblzma5 libsqlite3-0 libreadline8 libncursesw6 zlib1g libuuid1 && rm -rf /var/lib/apt/lists/*
 COPY --from=cookidoo /usr/local/bin/python3.13 /usr/local/bin/python3.13
 COPY --from=cookidoo /usr/local/lib/python3.13 /usr/local/lib/python3.13
