@@ -150,3 +150,9 @@ Das tatsächlich heruntergeladene Registry-Image zusätzlich mit genau diesem Di
 Vorhandene OIDC-Funktion im veröffentlichten 0.8-Image geprüft; keine neue Anwendungslogik oder Datenbankmigration erforderlich. Authentik-Anleitung mit Confidential-Client, exakter Redirect-URI, per-Application-Issuer, RSA-Signatur/JWKS, ID-Token-Claims, Environment und ausdrücklicher Bestandskonto-Verknüpfung ergänzt.
 
 Konten-/OIDC-Integrationstest mit signierten Test-ID-Tokens und MariaDB erfolgreich; Fixture verwendet Authentiks Discovery-/Authorize-/Token-/JWKS-Pfade einschließlich abschließendem Issuer-Slash. Client-Authentifizierung, Redirect-URI, Scopes, PKCE, Registrierung mit verifizierter E-Mail, E-Mail-Kollision, ausdrückliche Verknüpfung mit email_verified=false bei deaktivierter OIDC-Registrierung, erneute Anmeldung der verknüpften Identität und Callback-Replay geprüft. TypeScript-Prüfung erfolgreich. Testprovider simuliert; dies ersetzt keinen Login mit einem echten Authentik-Konto.
+
+## OIDC-Konfiguration im veröffentlichten Image (12.10.2026)
+
+[GitHub-Actions-Lauf 38228748712](https://github.com/phillipunzen/rezept-datenbank/actions/runs/38228748712) erfolgreich: Produktionsbuild, App-Start mit externer CI-MariaDB, Migrationen, Readiness, Weboberfläche und Prüfung der durch Environment aktivierten OIDC-Anmeldung einschließlich Anmeldebutton-Beschriftung über `/api/v1/auth/options`. Ausschließlich simulierte Providerwerte im CI-Test; kein echtes Client-Secret veröffentlicht.
+
+Quellstand `bc5806674d848f6ef2a4538358a7d4a575aa3067`, veröffentlichte Tags `latest` und `sha-bc5806674d848f6ef2a4538358a7d4a575aa3067`. Registry-Digest `sha256:a4bcc22c6420610ea20a8c4afbff879d70fd34a16af5927fe6420339ecde791a`, Linux/amd64. Anonymer Registry-Abruf und Docker-Pull erfolgreich, Image-Revision und Dokumentationslabel geprüft. OIDC-Providerwerte sind nicht im Image hinterlegt; Compose und Authentik-Anleitung konfigurieren sie ausschließlich zur Laufzeit.
