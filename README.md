@@ -173,6 +173,8 @@ Weitere Einstellungen stehen in `.env.example`:
 | OIDC-Anmeldung | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, optional `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `OIDC_REGISTRATION_ENABLED` |
 | Cookidoo-Einkaufslisten | `COOKIDOO_ENABLED`, `COOKIDOO_ALLOW_HTTP`, optional `COOKIDOO_ENCRYPTION_KEY` |
 
+Authentik Schritt für Schritt einrichten: [OIDC mit Authentik](docs/OIDC_AUTHENTIK.md). Der Anmeldebutton erscheint automatisch, sobald `OIDC_ISSUER` und `OIDC_CLIENT_ID` gesetzt sind. Bestehende Konten können unter Einstellungen → „Anmeldekonto verknüpfen“ verbunden werden.
+
 Ohne SMTP-Konfiguration ist der E-Mail-Passwortreset deaktiviert. Einladungen werden als Links weitergegeben. OIDC benötigt einen HTTPS-Issuer; die Callback-Adresse ist `APP_ORIGIN/api/v1/auth/oidc/callback`.
 
 Cookidoo ist optional und experimentell. Das Passwort wird nicht gespeichert. Ohne expliziten Verschlüsselungsschlüssel erzeugt die App eine private Schlüsseldatei im Uploadvolume; diese muss mitgesichert werden. HTTP-Anmeldung lässt sich für Entwicklung ausdrücklich mit `COOKIDOO_ALLOW_HTTP=true` freigeben, für HTTPS bleibt der Wert `false`. Eigene Rezeptlinks und Geräteexporte sind keine nachgewiesenen Cookidoo-Rezeptimportformate.

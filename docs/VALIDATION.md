@@ -144,3 +144,9 @@ Lokales Produktionsimage gebaut und gegen eine leere isolierte Datenbank außerh
 [GitHub-Actions-Lauf 37925695183](https://github.com/phillipunzen/rezept-datenbank/actions/runs/37925695183) erfolgreich: Build, separate CI-MariaDB/Runtime-Prüfung und GHCR-Push. Quellstand `454ed884fd846bea5289f98a46c663d5cbaad2d8`, veröffentlichte Tags `latest` und `sha-454ed884fd846bea5289f98a46c663d5cbaad2d8`. Registry-Digest `sha256:bdef2ad7d86a71ce617e526ea3bff0d591f2b606f203911a8ad87a1bb8d867e4` (Linux/amd64). Anonymer Registry-Manifestabruf und Docker-Pull erfolgreich, keine Anmeldung erforderlich.
 
 Das tatsächlich heruntergeladene Registry-Image zusätzlich mit genau diesem Digest über App-only-Compose gegen eine leere externe Testdatenbank gestartet: Migrationen, Readiness, Ersteinrichtung, Hostzuordnung und fehlender DB-Server im App-Container bestätigt. Temporäre Container, Uploadvolume und Testdatenbank vollständig entfernt. Die laufende Entwicklungsinstanz wurde nicht neu erstellt.
+
+## OIDC mit Authentik (12.10.2026)
+
+Vorhandene OIDC-Funktion im veröffentlichten 0.8-Image geprüft; keine neue Anwendungslogik oder Datenbankmigration erforderlich. Authentik-Anleitung mit Confidential-Client, exakter Redirect-URI, per-Application-Issuer, RSA-Signatur/JWKS, ID-Token-Claims, Environment und ausdrücklicher Bestandskonto-Verknüpfung ergänzt.
+
+Konten-/OIDC-Integrationstest mit signierten Test-ID-Tokens und MariaDB erfolgreich; Fixture verwendet Authentiks Discovery-/Authorize-/Token-/JWKS-Pfade einschließlich abschließendem Issuer-Slash. Client-Authentifizierung, Redirect-URI, Scopes, PKCE, Registrierung mit verifizierter E-Mail, E-Mail-Kollision, ausdrückliche Verknüpfung mit email_verified=false bei deaktivierter OIDC-Registrierung, erneute Anmeldung der verknüpften Identität und Callback-Replay geprüft. TypeScript-Prüfung erfolgreich. Testprovider simuliert; dies ersetzt keinen Login mit einem echten Authentik-Konto.

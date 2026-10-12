@@ -47,7 +47,8 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       SMTP_PORT: String(port),
       SMTP_FROM: "recipes@example.test",
       SMTP_REQUIRE_TLS: "false",
-      OIDC_ISSUER: "https://provider.test",
+      OIDC_ISSUER: "https://provider.test/application/o/rezeptdatenbank/",
+      OIDC_LABEL: "Mit Authentik anmelden",
       OIDC_CLIENT_ID: "recipe-client",
       OIDC_CLIENT_SECRET: "test-secret",
       OIDC_REGISTRATION_ENABLED: "true",
@@ -72,23 +73,28 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
   const app = await buildApp(db, config, {
     oidcFetch: async (url, options) => {
       const path = new URL(String(url)).pathname;
-      if (path === "/.well-known/openid-configuration")
+      if (
+        path === "/application/o/rezeptdatenbank/.well-known/openid-configuration"
+      )
         return Response.json({
-          issuer: "https://provider.test",
-          authorization_endpoint: "https://provider.test/authorize",
-          token_endpoint: "https://provider.test/token",
-          jwks_uri: "https://provider.test/jwks",
+          issuer: config.oidc!.issuer,
+          authorization_endpoint: "https://provider.test/application/o/authorize/",
+          token_endpoint: "https://provider.test/application/o/token/",
+          jwks_uri: "https://provider.test/application/o/rezeptdatenbank/jwks/",
           response_types_supported: ["code"],
           subject_types_supported: ["public"],
           id_token_signing_alg_values_supported: ["RS256"],
           code_challenge_methods_supported: ["S256"],
         });
-      if (path === "/jwks") return Response.json({ keys: [jwk] });
-      if (path === "/token") {
+      if (path === "/application/o/rezeptdatenbank/jwks/")
+        return Response.json({ keys: [jwk] });
+      if (path === "/application/o/token/") {
         const body = new URLSearchParams(String(options.body)),
           code = body.get("code")!,
           grant = grants.get(code);
         assert.ok(grant);
+        assert.equal(body.get("client_id"), "recipe-client");
+        assert.equal(body.get("client_secret"), "test-secret");
         grants.delete(code);
         assert.equal(
           createHash("sha256")
@@ -101,7 +107,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
           ).toString("base64url"),
           payload = Buffer.from(
             JSON.stringify({
-              iss: "https://provider.test",
+              iss: config.oidc!.issuer,
               aud: "recipe-client",
               sub: grant.subject,
               nonce: grant.nonce,
@@ -296,6 +302,13 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
         subject,
         verified,
       });
+      assert.equal(url.pathname, "/application/o/authorize/");
+      assert.equal(url.searchParams.get("scope"), "openid email profile");
+      assert.equal(
+        url.searchParams.get("redirect_uri"),
+        config.origin + "/api/v1/auth/oidc/callback",
+      );
+      assert.equal(url.searchParams.get("code_challenge_method"), "S256");
       const cookie = String(start.headers["set-cookie"]).split(";")[0];
       const callback = await app.inject({
         url: `/api/v1/auth/oidc/callback?state=${state}&code=${code}`,
@@ -322,7 +335,10 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       await db.oidcIdentity.count({ where: { subject: "subject-collision" } }),
       0,
     );
-    const linked = await flow(first.user.email, "subject-linked", true);
+    // Authentik 2025.10+ returns email_verified=false by default. Explicit
+    // linking still identifies an existing account through its active session.
+    config.oidc!.registrationEnabled = false;
+    const linked = await flow(first.user.email, "subject-linked", true, false);
     assert.equal(
       linked.callback.headers.location,
       config.origin + "/#oidc=success",
@@ -340,6 +356,21 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       headers: { cookie: linked.cookie },
     });
     assert.equal(replay.headers.location, config.origin + "/#authError=oidc");
+    const returning = await flow(first.user.email, "subject-linked", false, false);
+    assert.equal(
+      returning.callback.headers.location,
+      config.origin + "/#oidc=success",
+    );
+    const closedRegistration = await flow("closed@accounts.test", "subject-closed");
+    assert.equal(
+      closedRegistration.callback.headers.location,
+      config.origin + "/#authError=oidc",
+    );
+    assert.equal(
+      await db.oidcIdentity.count({ where: { subject: "subject-closed" } }),
+      0,
+    );
+    config.oidc!.registrationEnabled = true;
     const unverified = await flow(
       "unverified@accounts.test",
       "subject-unverified",
