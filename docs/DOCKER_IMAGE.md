@@ -28,7 +28,9 @@ Die App enthält keinen MariaDB-Server. Migrationen werden beim Start gegen die 
 
 [GitHub Actions: Docker image](https://github.com/phillipunzen/rezept-datenbank/actions/workflows/docker-image.yml) baut das Image bei relevanten Änderungen auf `main`, Git-Tags `v*` oder manuell über **Run workflow**. Pull Requests bauen und prüfen das Image, veröffentlichen es aber nicht.
 
-Vor dem Upload startet der Workflow das gebaute Image gegen eine separat laufende, ausschließlich temporäre CI-MariaDB. Migrationen, Readiness, Weboberfläche und die Abwesenheit eines Datenbankservers im App-Image werden geprüft. Die Testdatenbank gehört nicht zur Installations-Compose-Datei.
+Vor dem Upload startet der Workflow das gebaute Image gegen eine separat laufende, ausschließlich temporäre CI-MariaDB. Migrationen, Readiness, Weboberfläche, OIDC-Aktivierung über Environment und die Abwesenheit eines Datenbankservers im App-Image werden geprüft. Der OIDC-Konfigurationstest verwendet ausschließlich Testwerte; es werden keine echten Provider-Zugangsdaten im Image gespeichert. Die Testdatenbank gehört nicht zur Installations-Compose-Datei.
+
+OIDC funktioniert im gleichen Image; eine eigene Authentik-Variante ist nicht erforderlich. `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_LABEL` und `OIDC_REGISTRATION_ENABLED` werden zur Laufzeit über `.env` gesetzt. [Authentik einrichten](OIDC_AUTHENTIK.md).
 
 Der Workflow verwendet den automatisch von GitHub bereitgestellten `GITHUB_TOKEN` mit `packages: write`; zusätzliche Registry-Secrets sind für diesen Build nicht nötig. Action-Versionen sind auf Commit-SHAs festgelegt. Das Image wird mit Repository-/Versionsmetadaten verknüpft. [GitHub: Docker-Images veröffentlichen](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images).
 
