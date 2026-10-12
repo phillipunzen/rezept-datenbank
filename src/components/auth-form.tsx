@@ -52,7 +52,7 @@ export function AuthForm({
           <div className="eyebrow">
             <Leaf size={16} /> {t.home}
           </div>
-          <h1>{t.firstStep}</h1>
+          <h1>{t.welcomeTitle}</h1>
           <p>{t.tagline}</p>
           <div className="bowl-art" aria-hidden="true">
             <span className="herb herb-one" />
@@ -67,10 +67,6 @@ export function AuthForm({
       </section>
       <section className="auth-panel">
         <div className="auth-top">
-          <span className="status-pill">
-            <i />
-            {t.development}
-          </span>
           <select
             aria-label={t.language}
             value={locale}
@@ -81,7 +77,7 @@ export function AuthForm({
           </select>
         </div>
         <div className="auth-card">
-          <span className="eyebrow">{t.phaseNote}</span>
+          <span className="eyebrow">{t.cookingTagline}</span>
           <h2>
             {setup ? t.setupTitle : register ? t.registerTitle : t.loginTitle}
           </h2>
@@ -109,7 +105,7 @@ export function AuthForm({
                   name="name"
                   maxLength={120}
                   autoComplete="name"
-                  placeholder="Phillip"
+                  placeholder={locale === "de" ? "Dein Name" : "Your name"}
                   required
                 />
               </label>
@@ -186,7 +182,7 @@ export function AuthForm({
           {!setup && !register && <AccountOptions locale={locale} />}
         </div>
         <div className="auth-bottom">
-          v{system.version} <span>·</span> {t.stage}
+          v{system.version}
         </div>
       </section>
     </main>

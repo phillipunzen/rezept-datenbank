@@ -173,7 +173,6 @@ export async function buildApp(
         })),
         registrationEnabled: config.registrationEnabled,
         publicCatalogEnabled: config.publicCatalogEnabled,
-        phase: 8,
       }));
       await authRoutes(api, db, config);
       await accountRoutes(api, db, config);

@@ -5,11 +5,11 @@ Eine vollständige Sicherung enthält **MariaDB, das vollständige Uploadvolume,
 ## Entwicklungsprofil sichern
 
 ```bash
-cd /opt/rezeptdatenbank
+cd /path/to/rezept-datenbank
 python3 scripts/backup.py backups/MEIN_NEUER_SICHERUNGSNAME
 ```
 
-Dieses Skript ist für die aktuelle separate Compose-Entwicklungsdatenbank vorgesehen. Ziel muss neu innerhalb `backups/` liegen. Es ermittelt das tatsächlich laufende Image, stoppt die App für einen konsistenten Stand, schreibt Konten-/Tabellenprüfsummen und SQL-Dump, archiviert das Uploadvolume und kopiert `.env`. Im `finally` startet es die ursprüngliche App wieder; ein fehlgeschlagenes Backup ist kein gültiger Sicherungsstand. Supervisor/Compose lassen laufende begrenzte Arbeiten geordnet auslaufen; eine unklare Cookidoo-Schreibabsicht bleibt zur Wiederprüfung gespeichert.
+Dieses Skript ist für die ausdrücklich optionale separate Compose-Testdatenbank vorgesehen. Ziel muss neu innerhalb `backups/` liegen. Es ermittelt das tatsächlich laufende Image, stoppt die App für einen konsistenten Stand, schreibt Konten-/Tabellenprüfsummen und SQL-Dump, archiviert das Uploadvolume und kopiert `.env`. Im `finally` startet es die ursprüngliche App wieder; ein fehlgeschlagenes Backup ist kein gültiger Sicherungsstand. Supervisor/Compose lassen laufende begrenzte Arbeiten geordnet auslaufen; eine unklare Cookidoo-Schreibabsicht bleibt zur Wiederprüfung gespeichert.
 
 Ergebnis: `database.sql`, `uploads.tar.gz`, `environment.env`, `image-id.txt`, `accounts-before.json`, `data-before.json`. Zusätzlich getestetes Image in Registry bzw. mit `docker image save` extern verwahren; ein lokaler Digest allein schützt nicht vor Serververlust. Lockfile/Quellen separat versionieren. Backups niemals committen.
 

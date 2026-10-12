@@ -25,7 +25,7 @@ Quellenname, Quell-URL, Nährwertquelle, persönliche Notizen und Kontodaten ble
 
 Neue und bestehende Rezepte sind zunächst unveröffentlicht. Widerruf, Papierkorb, Sichtbarkeitswechsel oder Haushaltsaustritt nehmen eine Veröffentlichung zurück. Wiederherstellen veröffentlicht nicht erneut. Katalog und unaufgelistete Linkfreigaben werden unabhängig verwaltet. Mit `PUBLIC_CATALOG_ENABLED=false` lässt sich der gesamte Katalog abschalten.
 
-## API und Entwicklung
+## API
 
 - API-Dokumentation: `/api/v1/docs`, OpenAPI: `/api/v1/docs/json`.
 - Liveness: `/api/v1/health/live`, Datenbank-Readiness: `/api/v1/health/ready`.
@@ -33,7 +33,7 @@ Neue und bestehende Rezepte sind zunächst unveröffentlicht. Widerruf, Papierko
 
 Schreibende Anfragen benötigen `Origin: <APP_ORIGIN>` und eine passende Session; veraltete Änderungen liefern HTTP 409. Das Backend ist nur innerhalb des App-Containers erreichbar. Node und Python für den optionalen Cookidoo-Adapter sind im Docker-Image enthalten.
 
-Hinweise zum lokalen Entwickeln und zur ausdrücklich optionalen Testdatenbank: [Entwicklung](docs/DEVELOPMENT.md). Für die normale Installation ist diese Entwicklungsdatenbank nicht erforderlich.
+Informationen für Mitwirkende und lokale Tests stehen separat in [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 [Architektur](docs/ARCHITECTURE.md) · [Datenmodell](docs/DATABASE.md) · [Tandoor](docs/TANDOOR_IMPORT.md) · [Thermomix](docs/THERMOMIX.md) · [Cookidoo](docs/COOKIDOO_SYNC.md) · [Sicherheit](docs/SECURITY.md) · [Backup/Restore](docs/BACKUP.md) · [Prüfnachweise](docs/VALIDATION.md)
 

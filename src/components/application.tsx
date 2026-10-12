@@ -20,7 +20,6 @@ import { AuthForm } from "./auth-form";
 import { PasswordReset } from "./account-options";
 import { Profile } from "./profile";
 import { Dashboard } from "./dashboard";
-import { Roadmap } from "./roadmap";
 import { RecipeWorkspace } from "./recipes/recipe-workspace";
 import { recipeMessages } from "./recipes/messages";
 import { HouseholdManager } from "./households/household-manager";
@@ -36,7 +35,6 @@ import { planningMessages } from "./planning/messages";
 import { messages, type Locale } from "./translations";
 type View =
   | "dashboard"
-  | "roadmap"
   | "settings"
   | "recipes"
   | "households"
@@ -62,7 +60,6 @@ export function Application() {
   const appearance = useAppearance();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [databaseReady, setDatabaseReady] = useState(false);
   const t = messages[locale];
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,21 +125,8 @@ export function Application() {
               : "Verbindung fehlgeschlagen",
           );
       });
-    const check = () =>
-      api("/health/ready")
-        .then(() => {
-          if (active) setDatabaseReady(true);
-        })
-        .catch(() => {
-          if (active) setDatabaseReady(false);
-        });
-    void check();
-    const interval = setInterval(() => {
-      void check();
-    }, 30000);
     return () => {
       active = false;
-      clearInterval(interval);
     };
   }, [user, membershipsRefresh]);
   function membershipsChanged(preferred?: string) {
@@ -299,7 +283,6 @@ export function Application() {
     { label: t.planner, icon: CalendarDays, target: "planner" as View },
     { label: t.shopping, icon: ClipboardList, target: "shopping" as View },
     { label: p.history, icon: Clock, target: "history" as View },
-    { label: t.viewPlan, icon: Grid2x2, target: "roadmap" as View },
   ];
   return (
     <div className="app-layout">
@@ -355,10 +338,6 @@ export function Application() {
             {t.settings}
           </button>
           <div className="sidebar-version">
-            <span className="status-pill">
-              <i />
-              {t.development}
-            </span>
             <small>v{system.version}</small>
           </div>
         </div>
@@ -421,10 +400,7 @@ export function Application() {
               showPlanner={() => navigate("planner")}
               showShopping={() => navigate("shopping")}
               user={user}
-              memberships={memberships}
               locale={locale}
-              databaseReady={databaseReady}
-              showRoadmap={() => navigate("roadmap")}
               showRecipes={() => navigate("recipes")}
               householdId={householdId}
             />
@@ -533,7 +509,6 @@ export function Application() {
               </nav>
             </>
           )}
-          {view === "roadmap" && <Roadmap locale={locale} />}
           {view === "settings" && (
             <Profile
               user={user}

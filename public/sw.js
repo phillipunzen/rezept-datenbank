@@ -1,4 +1,4 @@
-const CACHE = "rezeptdatenbank-shell-v2";
+const CACHE = "rezeptdatenbank-shell-v3";
 const SHELL = ["/offline.html", "/offline.js", "/offline.css", "/icon.svg"];
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

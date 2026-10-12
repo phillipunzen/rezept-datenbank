@@ -10,7 +10,6 @@ export interface System {
   setupRequired: boolean;
   registrationEnabled: boolean;
   publicCatalogEnabled: boolean;
-  phase: number;
 }
 export interface Membership {
   role: string;

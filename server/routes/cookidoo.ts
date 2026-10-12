@@ -78,7 +78,7 @@ export async function cookidooRoutes(
       if (!config.origin.startsWith("https://") && !config.cookidooAllowHttp)
         throw new RecipeError(
           400,
-          "Cookidoo-Anmeldung benötigt HTTPS. Für Entwicklung ist COOKIDOO_ALLOW_HTTP=true ausdrücklich konfigurierbar.",
+          "Cookidoo-Anmeldung benötigt HTTPS.",
         );
       return { connection: await service.connect(actor, request.body) };
     },

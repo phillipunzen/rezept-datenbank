@@ -1,6 +1,6 @@
 # Verifikation – 01.10.2026
 
-Auf SRV-DEV01 unter /opt/rezeptdatenbank geprüft:
+Prüfnachweise für die jeweils genannten Versionen. Datenbank-, Upgrade- und Restore-Prüfungen verwenden isolierte Testdatenbanken:
 
 - TypeScript strict: erfolgreich.
 - Docker-Produktionsbuild mit Node 22: erfolgreich.
@@ -13,7 +13,7 @@ Auf SRV-DEV01 unter /opt/rezeptdatenbank geprüft:
 - Readiness über LAN-IP: HTTP 200, database=connected. Swagger/OpenAPI JSON und PWA-Icon: HTTP 200.
 - Standard-Compose enthält nur app; Entwicklungs-Override ergänzt mariadb ohne veröffentlichten DB-Port.
 - Gleicher App-Build wurde über Environment auf die separate E2E-Datenbank umgestellt; keine DB-Adresse im Frontendbuild.
-- Stand bei Auslieferung von Phase 2: Die Entwicklungsinstanz war uninitialisiert (setupRequired=true), sodass der Nutzer seinen eigenen Admin beim ersten Öffnen anlegt. Testkonten existieren ausschließlich in Testdatenbanken.
+- Stand bei Auslieferung von Phase 2: Die Prüfinstanz war uninitialisiert (setupRequired=true), sodass der Nutzer seinen eigenen Admin beim ersten Öffnen anlegt. Testkonten existieren ausschließlich in Testdatenbanken.
 
 Noch nicht verifiziert: externer kundeneigener MariaDB-Server (keine Zugangsdaten vorhanden), HTTPS/Reverse Proxy/PWA-Installation auf realem iPad, vollständiger Restore mit Rezeptbildern, Cookidoo-Kompatibilität einer eigenen Rezept-URL, konkrete Tandoor-Exportfixtures. Diese Punkte sind in den entsprechenden Dokumenten und der Roadmap festgehalten.
 
@@ -35,7 +35,7 @@ Noch nicht verifiziert: externer kundeneigener MariaDB-Server (keine Zugangsdate
 - E2E-Origin ist jetzt `http://rezeptdatenbank.test:8081`, im Browser auf 127.0.0.1 aufgelöst; Container bleibt ausschließlich lokal erreichbar. Der Test bestätigt `isSecureContext=false` und fehlendes `crypto.randomUUID`.
 - Vor der Korrektur schlug der Rezept-Browsertest beim Öffnen des Editors fehl. Mit Korrektur bestehen beide Browserworkflows, einschließlich Anlegen, Hinzufügen/Sortieren von Zutaten und Schritten, Speichern, Bearbeiten, Bildern und mobiler Ansicht, ohne JavaScript-Seitenfehler.
 - TypeScript-Prüfung und Docker-Produktionsbuild erfolgreich.
-- Korrigiertes, getestetes Image auf der Entwicklungsinstanz gestartet; Weboberfläche und Readiness über LAN liefern HTTP 200. Benutzer, Haushalte, Mitgliedschaften und Sitzungen entsprechen exakt dem unmittelbar vor dem Deployment gesicherten Stand.
+- Korrigiertes, getestetes Image auf der Prüfinstanz gestartet; Weboberfläche und Readiness über LAN liefern HTTP 200. Benutzer, Haushalte, Mitgliedschaften und Sitzungen entsprechen exakt dem unmittelbar vor dem Deployment gesicherten Stand.
 
 ## Website-Link-Import einschließlich Bild
 
@@ -53,8 +53,8 @@ Noch nicht verifiziert: externer kundeneigener MariaDB-Server (keine Zugangsdate
 - Neue API-Prüfungen: Rolleneskalation/globaler Admin ohne Sonderzugriff, Schutz letzter OWNER mit parallelen Rollenwechseln, veraltete Revision, Widerruf/Ablauf, Token nur gehasht, E-Mail-Bindung, Einladung bei geschlossener Registrierung, einmalige Annahme mit paralleler Registrierung. Private Rezepte fehlen für Unberechtigte auch in Suche/Metadaten/Bildabruf. VIEW/EDIT, Erstellerkontrolle, Herabstufung und Mitgliedsentfernung geprüft. Eine während des Haushalts-Locks wartende Bearbeitung prüft nach Entzug die Berechtigung erneut und liefert 403.
 - Vier Chromium-Workflows auf unsicherem HTTP-Origin erfolgreich: Grundgerüst, Haushalte/Freigaben, Rezeptverwaltung, Website-Link-Import. Zwei getrennte Browserkonten testen Einladung/Kontoanlage, Haushaltsanlage/Umbenennung, privaten Bildabruf, Lesefreigabe, Bearbeitungsfreigabe, Herabstufung und Entfernen. Mobile Breite 390 px ohne horizontalen Überlauf, keine Browser-Ausnahmen. Kopier-Fallback für Einladungslink ohne HTTPS geprüft. Ausschließlich rezeptdatenbank_e2e verwendet.
 - Vor Live-Update App kurz gestoppt, SQL/Uploads/Environment sowie Konten-/Datenprüfsummen privat unter backups/pre-phase4 gesichert. SQL in die separate rezeptdatenbank_upgrade restauriert. Sharing-Migration angewendet und alle ursprünglichen Tabelleninhalte per SHA-256 verglichen: 1 Benutzer, 1 Sitzung, 1 Haushalt/Mitgliedschaft, 1 Rezept mit 9 Zutaten, 5 Schritten, 1 Bildreferenz erhalten. Bestehende Rezepte bleiben HOUSEHOLD.
-- Nach Deployment stimmen sämtliche bestehenden Konten-, Haushalts-, Sitzungs- und Rezeptdaten mit dem unmittelbar vorher gesicherten Stand überein. Web UI und Readiness über http://192.168.10.70:8080 HTTP 200; System meldet Version 0.3.0, Phase 4, setupRequired=false, registrationEnabled=false. Live-OpenAPI enthält Haushalts-, Einladungs- und Freigaberouten.
-- Externe Datenbank bleibt über DATABASE_URL konfigurierbar; aktuelle Entwicklungs-DB weiterhin eigener MariaDB-Container ohne veröffentlichten DB-Port. SMTP-Versand, öffentliche Rezeptfreigabe und fachliche Offline-Synchronisierung sind nicht Teil dieser Iteration.
+- Nach Deployment stimmen sämtliche bestehenden Konten-, Haushalts-, Sitzungs- und Rezeptdaten mit dem unmittelbar vorher gesicherten Stand überein. Web UI und Readiness über die jeweilige Installationsadresse HTTP 200; System meldet Version 0.3.0, Phase 4, setupRequired=false, registrationEnabled=false. Live-OpenAPI enthält Haushalts-, Einladungs- und Freigaberouten.
+- Externe Datenbank bleibt über DATABASE_URL konfigurierbar; optionale Test-DB weiterhin eigener MariaDB-Container ohne veröffentlichten DB-Port. SMTP-Versand, öffentliche Rezeptfreigabe und fachliche Offline-Synchronisierung sind nicht Teil dieser Iteration.
 
 ## Studio-Oberfläche – Version 0.3.1 (01.10.2026)
 
@@ -64,7 +64,7 @@ Noch nicht verifiziert: externer kundeneigener MariaDB-Server (keine Zugangsdate
 - Sechs Chromium-Prüfungen erfolgreich: Grundgerüst, Haushalte/Freigaben, Rezeptverwaltung, Website-Import mit Bild sowie zwei Theme-Prüfungen. Letztere prüfen automatischen Wechsel, manuelles Überschreiben, Neuladen, Einstellungen, Tab-Synchronisierung, nicht verfügbaren Browser-Speicher, mobile Breite 390 px, Desktop mit Sammlung/Details und Druck. Keine JavaScript-Seitenfehler und kein horizontaler Überlauf bei den geprüften Ansichten. Screenshots der hellen Sammlung, dunklen Detailansicht und mobilen Oberfläche kontrolliert.
 - Der vollständige Browserlauf nutzt weiterhin ausschließlich rezeptdatenbank_e2e. Zwischen Testdateien wird der Testcontainer neu gestartet, damit getrennte Workflows nicht dasselbe minutenweise Rate-Limit aufbrauchen. Produktionslimits bleiben unverändert; Testdaten bleiben für die folgenden Workflows erhalten.
 - Vor Deployment SQL, Uploads, Environment, vorheriger App-Image-Digest und Datenprüfsummen privat unter backups/pre-studio gesichert. Nach Deployment stimmen Konten-/Rezeptdaten, Rezeptbilddateien und Environment mit dem gesicherten Stand überein.
-- Live-Weboberfläche und Readiness über http://192.168.10.70:8080 liefern HTTP 200. System meldet Version 0.3.1, Phase 4, setupRequired=false und registrationEnabled=false. Die ausgelieferte HTML-Seite enthält die frühzeitige Anwendung des Browser-Themes. DATABASE_URL bleibt die Konfiguration für externe Datenbanken.
+- Live-Weboberfläche und Readiness über die jeweilige Installationsadresse liefern HTTP 200. System meldet Version 0.3.1, Phase 4, setupRequired=false und registrationEnabled=false. Die ausgelieferte HTML-Seite enthält die frühzeitige Anwendung des Browser-Themes. DATABASE_URL bleibt die Konfiguration für externe Datenbanken.
 
 
 ## Rezept als eigene Seite – Version 0.3.2 (02.10.2026)
@@ -115,7 +115,7 @@ Offline-Auswahl ergänzt Suche/Seitenwechsel mit erhaltener Auswahl und separate
 
 Sicherung `backups/pre-cookidoo/` enthält SQL, Uploadvolume, private Environment-Konfiguration, tatsächliches Vorgängerimage und Prüfsummen bei gestoppter App. Upgrade in `rezeptdatenbank_upgrade` erhält alle vorhandenen Zeilen/Spalten. Vollständiger Restore in `rezeptdatenbank_restore` mit separatem Volume/Container auf Loopback 8082 erhält Daten, authentifizierte Rezeptansicht und eine bytegenau gleiche Rezeptbildantwort; temporäre Restore-Ressourcen entfernt.
 
-Live unter http://192.168.10.70:8080: System 0.7.0/Phase 8, Einrichtung abgeschlossen, Readiness/Web UI HTTP 200, App/DB healthy. Alle 15 zuvor befüllten Tabellen unverändert, Konten-/Sitzungsprüfsummen und Uploadbytes unverändert. Environment unverändert gegenüber der Sicherung; einzig vorher absichtlich ergänzte Entwicklungsoptionen COOKIDOO_ENABLED=true und COOKIDOO_ALLOW_HTTP=true. Sonstige ursprüngliche Environment-Werte zuvor exakt auf Erhalt geprüft. Release-Image: `sha256:c940d4696ecc5811c0bc93a805e1440f30479d9a8800a2a41e8c07ebfd8e4efb`. SMTP/OIDC bleiben unkonfiguriert, Offline/Wake Lock auf LAN-HTTP browserbedingt eingeschränkt, Cookidoo-URL-Rezeptimport unbestätigt.
+Live unter der jeweiligen Installationsadresse: System 0.7.0/Phase 8, Einrichtung abgeschlossen, Readiness/Web UI HTTP 200, App/DB healthy. Alle 15 zuvor befüllten Tabellen unverändert, Konten-/Sitzungsprüfsummen und Uploadbytes unverändert. Environment unverändert gegenüber der Sicherung; einzig vorher absichtlich ergänzte Entwicklungsoptionen COOKIDOO_ENABLED=true und COOKIDOO_ALLOW_HTTP=true. Sonstige ursprüngliche Environment-Werte zuvor exakt auf Erhalt geprüft. Release-Image: `sha256:c940d4696ecc5811c0bc93a805e1440f30479d9a8800a2a41e8c07ebfd8e4efb`. SMTP/OIDC bleiben unkonfiguriert, Offline/Wake Lock auf LAN-HTTP browserbedingt eingeschränkt, Cookidoo-URL-Rezeptimport unbestätigt.
 
 ## Version 0.8 · öffentlicher Rezeptkatalog (02.10.2026)
 
@@ -143,7 +143,7 @@ Lokales Produktionsimage gebaut und gegen eine leere isolierte Datenbank außerh
 
 [GitHub-Actions-Lauf 37925695183](https://github.com/phillipunzen/rezept-datenbank/actions/runs/37925695183) erfolgreich: Build, separate CI-MariaDB/Runtime-Prüfung und GHCR-Push. Quellstand `454ed884fd846bea5289f98a46c663d5cbaad2d8`, veröffentlichte Tags `latest` und `sha-454ed884fd846bea5289f98a46c663d5cbaad2d8`. Registry-Digest `sha256:bdef2ad7d86a71ce617e526ea3bff0d591f2b606f203911a8ad87a1bb8d867e4` (Linux/amd64). Anonymer Registry-Manifestabruf und Docker-Pull erfolgreich, keine Anmeldung erforderlich.
 
-Das tatsächlich heruntergeladene Registry-Image zusätzlich mit genau diesem Digest über App-only-Compose gegen eine leere externe Testdatenbank gestartet: Migrationen, Readiness, Ersteinrichtung, Hostzuordnung und fehlender DB-Server im App-Container bestätigt. Temporäre Container, Uploadvolume und Testdatenbank vollständig entfernt. Die laufende Entwicklungsinstanz wurde nicht neu erstellt.
+Das tatsächlich heruntergeladene Registry-Image zusätzlich mit genau diesem Digest über App-only-Compose gegen eine leere externe Testdatenbank gestartet: Migrationen, Readiness, Ersteinrichtung, Hostzuordnung und fehlender DB-Server im App-Container bestätigt. Temporäre Container, Uploadvolume und Testdatenbank vollständig entfernt. Die bestehende Installation wurde nicht neu erstellt.
 
 ## OIDC mit Authentik (12.10.2026)
 
@@ -156,3 +156,9 @@ Konten-/OIDC-Integrationstest mit signierten Test-ID-Tokens und MariaDB erfolgre
 [GitHub-Actions-Lauf 38228748712](https://github.com/phillipunzen/rezept-datenbank/actions/runs/38228748712) erfolgreich: Produktionsbuild, App-Start mit externer CI-MariaDB, Migrationen, Readiness, Weboberfläche und Prüfung der durch Environment aktivierten OIDC-Anmeldung einschließlich Anmeldebutton-Beschriftung über `/api/v1/auth/options`. Ausschließlich simulierte Providerwerte im CI-Test; kein echtes Client-Secret veröffentlicht.
 
 Quellstand `bc5806674d848f6ef2a4538358a7d4a575aa3067`, veröffentlichte Tags `latest` und `sha-bc5806674d848f6ef2a4538358a7d4a575aa3067`. Registry-Digest `sha256:a4bcc22c6420610ea20a8c4afbff879d70fd34a16af5927fe6420339ecde791a`, Linux/amd64. Anonymer Registry-Abruf und Docker-Pull erfolgreich, Image-Revision und Dokumentationslabel geprüft. OIDC-Providerwerte sind nicht im Image hinterlegt; Compose und Authentik-Anleitung konfigurieren sie ausschließlich zur Laufzeit.
+
+## Produktoberfläche (12.10.2026)
+
+Entwicklungskennzeichnungen auf Anmeldung und in der Seitenleiste entfernt; Entwicklungsplan einschließlich Navigation/Komponente und ungenutzter Übersetzungen entfernt. Begrüßungs- und Einrichtungstexte in Deutsch und Englisch verallgemeinert, fester Serverpfad und persönliche Namensvorgabe entfernt. Dashboard-Datenbankanzeige und ihr Browser-Polling entfernt; Health-Endpunkte für Containerbetrieb bleiben erhalten. System-API enthält keine Umsetzungsphase mehr. Cookidoo-HTTP-Hinweise neutral formuliert; HTTPS-Anforderung und ausdrückliche Zustimmung zu unverschlüsselter Übertragung bleiben erhalten. Offline-Hinweise angepasst und Shell-Cache-Version erneuert.
+
+Produktionsbuild einschließlich TypeScript-Prüfung erfolgreich. Sechs Chromium-Prüfungen mit isolierter MariaDB bestanden: Ersteinrichtung/Kontoverwaltung/Sprachen/Mobile, Rezeptverwaltung, zwei Theme-Prüfungen, Cookidoo mit simuliertem Provider und verschlüsselte Offline-Nutzung einschließlich Konflikten und Abmeldesperre. Desktop-Ansicht visuell kontrolliert. Keine neue Datenbankmigration erforderlich. Das veröffentlichte Image kann mit den bestehenden Environment-Werten und Daten verwendet werden.

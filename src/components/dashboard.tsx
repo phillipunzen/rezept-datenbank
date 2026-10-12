@@ -11,7 +11,7 @@ import { useState } from "react";
 import { api } from "./api";
 import type { RecipePage } from "../../shared/recipes";
 import type { PlanEntry, CookingEvent } from "../../shared/planning";
-import type { Membership, User } from "./api";
+import type { User } from "./api";
 import { messages, type Locale } from "./translations";
 import { planningMessages } from "./planning/messages";
 import { localDate } from "./planning/meal-planner";
@@ -19,7 +19,6 @@ import { usePlanningResource } from "./planning/use-planning";
 export function Dashboard({
   user,
   locale,
-  databaseReady,
   showRecipes,
   householdId,
   onRecipe,
@@ -27,10 +26,7 @@ export function Dashboard({
   showShopping,
 }: {
   user: User;
-  memberships: Membership[];
   locale: Locale;
-  databaseReady: boolean;
-  showRoadmap: () => void;
   showRecipes: () => void;
   householdId: string;
   onRecipe: (id: string) => void;
@@ -227,9 +223,6 @@ export function Dashboard({
           </div>
         )}
       </section>
-      <p className="small muted">
-        {databaseReady ? t.connected : t.dbUnavailable}
-      </p>
     </>
   );
 }

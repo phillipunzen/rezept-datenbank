@@ -381,8 +381,8 @@ export function CookidooManager({
                 <input type="checkbox" required />
                 <span>
                   {say(
-                    "Diese Entwicklungsinstanz verwendet HTTP. Meine Zugangsdaten werden zwischen Browser und App unverschlüsselt übertragen. Ich möchte fortfahren.",
-                    "This development instance uses HTTP. My credentials travel unencrypted between the browser and app. I want to continue.",
+                    "Diese Verbindung verwendet HTTP. Meine Zugangsdaten werden zwischen Browser und App unverschlüsselt übertragen. Ich möchte fortfahren.",
+                    "This connection uses HTTP. My credentials travel unencrypted between the browser and app. I want to continue.",
                   )}
                 </span>
               </label>
@@ -409,8 +409,8 @@ export function CookidooManager({
         ) : (
           <p>
             {say(
-              "Für die Cookidoo-Anmeldung diese App über HTTPS öffnen. HTTP lässt sich vom Betreiber ausdrücklich für Entwicklung freigeben.",
-              "Open this app over HTTPS to sign in to Cookidoo. The operator can explicitly enable HTTP for development.",
+              "Für die Cookidoo-Anmeldung diese App über HTTPS öffnen.",
+              "Open this app over HTTPS to sign in to Cookidoo.",
             )}
           </p>
         ))}

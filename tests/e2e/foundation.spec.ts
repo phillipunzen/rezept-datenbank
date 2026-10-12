@@ -32,7 +32,7 @@ test("first admin setup, dashboard, settings, language, logout and mobile login"
     .getByRole("button", { name: "Übersicht", exact: true })
     .click();
   await expect(
-    page.getByText("Datenbank verbunden", { exact: true }),
+    page.getByRole("heading", { name: /Schön, dass du da bist/ }),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/dashboard-desktop.png",

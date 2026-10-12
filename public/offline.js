@@ -218,8 +218,8 @@ $("unlock").onclick = () =>
     if (!isSecureContext || !crypto.subtle)
       throw Error(
         say(
-          "Offline-Betrieb benötigt HTTPS oder localhost.",
-          "Offline use requires HTTPS or localhost.",
+          "Offline-Betrieb benötigt eine sichere Verbindung (HTTPS).",
+          "Offline use requires a secure connection (HTTPS).",
         ),
       );
     const password = $("passphrase").value;
