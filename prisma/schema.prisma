@@ -57,6 +57,7 @@ model User {
   cookidooConnection  CookidooConnection?
   chatgptAccounts     ChatgptAccount[]
   chatgptPairings     ChatgptPairing[]
+  chatgptDevices      ChatgptDeviceAttempt[]
 }
 
 model Session {
@@ -687,6 +688,7 @@ model ChatgptAccount {
   id               String   @id @default(cuid()) @db.VarChar(30)
   userId           String   @db.VarChar(30)
   clientId         String   @db.VarChar(255)
+  provider         String   @default("oauth") @db.VarChar(16)
   subject          String   @db.VarChar(255)
   email            String   @db.VarChar(254)
   encryptedTokens  String?  @db.LongText
@@ -700,6 +702,22 @@ model ChatgptAccount {
 
   @@unique([userId, clientId])
   @@index([userId, active])
+}
+
+model ChatgptDeviceAttempt {
+  id               String   @id @default(cuid()) @db.VarChar(30)
+  userId           String   @db.VarChar(30)
+  accountId        String?  @db.VarChar(30)
+  accountRevision  Int?
+  status           String   @default("PENDING") @db.VarChar(16)
+  verificationUrl  String   @db.VarChar(200)
+  userCode         String   @db.VarChar(32)
+  resultAccountId  String?  @db.VarChar(30)
+  expiresAt        DateTime
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt])
 }
 
 model ChatgptPairing {

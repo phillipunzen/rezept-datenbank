@@ -8,7 +8,12 @@ test("photo import requires connection and zero-credit confirmation, then opens 
   const status: ChatgptStatus = { enabled: true, secureOrigin: true, creditsDisabledConfirmed: true, accounts: [] };
   let photoCalls = 0, creates = 0;
   await page.route("**/api/v1/chatgpt", route => route.fulfill({ json: status }));
-  await page.route("**/api/v1/chatgpt/pairing", route => route.fulfill({ json: { code: "a".repeat(64), expiresAt: new Date(Date.now() + 600000).toISOString() } }));
+  let accepted = false, cancellations = 0;
+  await page.route("**/api/v1/chatgpt/device/start", route => route.fulfill({ json: { id: "device", status: "PENDING", verificationUrl: "https://auth.openai.com/codex/device", userCode: "ABCD-1234", expiresAt: new Date(Date.now() + 600000).toISOString() } }));
+  await page.route("**/api/v1/chatgpt/device/device", route => {
+    if (route.request().method() === "DELETE") { cancellations++; return route.fulfill({ json: { ok: true } }); }
+    return route.fulfill({ json: { id: "device", status: accepted ? "COMPLETE" : "PENDING", verificationUrl: "https://auth.openai.com/codex/device", userCode: accepted ? "" : "ABCD-1234", expiresAt: new Date(Date.now() + 600000).toISOString() } });
+  });
   await page.route("**/api/v1/chatgpt/accounts/account/credits", route => {
     expect(route.request().postDataJSON()).toEqual({ confirmedZeroCredits: true });
     status.accounts[0].creditsConfirmed = true;
@@ -36,14 +41,20 @@ test("photo import requires connection and zero-credit confirmation, then opens 
   await page.getByRole("button", { name: "Add recipe", exact: true }).first().click();
   const panel = page.getByRole("region", { name: "Recipe from photo", exact: true });
   await panel.getByRole("button", { name: "Continue with ChatGPT", exact: true }).click();
-  await expect(panel.getByLabel("Connection code (valid for 10 minutes)")).toHaveValue("a".repeat(64));
-  await expect(panel.getByRole("link", { name: "Download sign-in helper" })).toHaveAttribute("href", "/tools/chatgpt-connect.mjs");
+  await expect(panel.getByLabel("One-time code for OpenAI")).toHaveValue("ABCD-1234");
+  await expect(panel.getByRole("link", { name: "Sign in at OpenAI" })).toHaveAttribute("href", "https://auth.openai.com/codex/device");
+  await panel.getByRole("button", { name: "Cancel sign-in", exact: true }).click();
+  await expect(panel.getByLabel("One-time code for OpenAI")).toHaveCount(0);
+  expect(cancellations).toBe(1);
+  await panel.getByRole("button", { name: "Continue with ChatGPT", exact: true }).click();
+  await expect(panel.getByLabel("One-time code for OpenAI")).toHaveValue("ABCD-1234");
   await page.setViewportSize({ width: 390, height: 1000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  status.accounts.push({ id: "account", email: "photo@example.test", label: "ChatGPT 1", connected: true, active: true, blocked: false, creditsConfirmed: false });
-  await panel.getByRole("button", { name: "Refresh connection status" }).click();
+  status.accounts.push({ id: "account", email: "photo@example.test", label: "ChatGPT 1", provider: "device", connected: true, active: true, blocked: false, creditsConfirmed: false });
+  accepted = true;
+  await expect(panel.getByRole("button", { name: "Confirm setting", exact: true })).toBeVisible();
   await expect(panel.getByRole("button", { name: "Recognize photo and open preview" })).toBeDisabled();
-  await panel.getByLabel("I have set this app's credit limit to 0 for this ChatGPT account.").check();
+  await panel.getByLabel("Additional Codex credits and automatic top-ups are disabled for this ChatGPT account.").check();
   await panel.getByRole("button", { name: "Confirm setting", exact: true }).click();
   await panel.getByRole("button", { name: "Load models", exact: true }).click();
   await panel.getByLabel("Recognition model", { exact: true }).selectOption("vision-test");

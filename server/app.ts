@@ -31,6 +31,7 @@ export async function buildApp(
     cookidooProvider?: import("./integrations/cookidoo-provider").CookidooProvider;
     oidcFetch?: import("openid-client").CustomFetch;
     chatgptFetch?: import("./integrations/chatgpt-provider").ChatgptFetch;
+    codexRuntimeFactory?: import("./integrations/codex-runtime").CodexRuntimeFactory;
   } = {},
 ) {
   const app = Fastify({
@@ -180,7 +181,7 @@ export async function buildApp(
       await authRoutes(api, db, config);
       await accountRoutes(api, db, config);
       await oidcRoutes(api, db, config, options.oidcFetch);
-      await chatgptRoutes(api, db, config, options.chatgptFetch);
+      await chatgptRoutes(api, db, config, options.chatgptFetch, options.codexRuntimeFactory);
       await householdRoutes(api, db, config);
       await planningRoutes(api, db, config);
       await cookidooRoutes(api, db, config, options.cookidooProvider);

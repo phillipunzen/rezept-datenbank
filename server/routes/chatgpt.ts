@@ -8,12 +8,16 @@ import { membership } from "../services/household-access";
 import { chatgptService } from "../services/chatgpt";
 import { photoInstructions, photoPreview } from "../services/recipe-photo-import";
 import type { ChatgptFetch } from "../integrations/chatgpt-provider";
+import { codexDeviceService } from "../services/codex-device";
+import type { CodexRuntimeFactory } from "../integrations/codex-runtime";
 
 const text = (maxLength: number) => ({ type: "string", minLength: 1, maxLength });
 const object = (properties: Record<string, unknown>) => ({ type: "object", additionalProperties: false, properties, required: Object.keys(properties) });
 const consent = { type: "boolean", const: true };
-export async function chatgptRoutes(app: FastifyInstance, db: PrismaClient, config: Config, customFetch?: ChatgptFetch) {
-  const service = chatgptService(db, config, customFetch), auth = authService(db, config);
+export async function chatgptRoutes(app: FastifyInstance, db: PrismaClient, config: Config, customFetch?: ChatgptFetch, runtimeFactory?: CodexRuntimeFactory) {
+  const devices = codexDeviceService(db, config, runtimeFactory);
+  const service = chatgptService(db, config, customFetch, devices), auth = authService(db, config);
+  app.addHook("onClose", () => devices.close());
   async function actor(req: FastifyRequest) {
     const user = await auth.currentUser(req);
     if (!user) throw new RecipeError(401, "Bitte anmelden.");
@@ -27,6 +31,15 @@ export async function chatgptRoutes(app: FastifyInstance, db: PrismaClient, conf
   const secure = { tags: ["ChatGPT photo import"], security: [{ cookieAuth: [] }] };
   app.get("/chatgpt", { schema: secure }, async req => service.status(await actor(req)));
   app.get("/chatgpt/models", { schema: secure }, async req => ({ models: await service.models(await actor(req)) }));
+  app.post<{ Body: { accountId: string | null } }>("/chatgpt/device/start", {
+    schema: { ...secure, body: object({ accountId: { type: ["string", "null"], minLength: 1, maxLength: 30 } }) },
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+  }, async req => devices.start(await actor(req), req.body.accountId));
+  const deviceParams = object({ id: text(30) });
+  app.get<{ Params: { id: string } }>("/chatgpt/device/:id", { schema: { ...secure, params: deviceParams } }, async req => devices.status(await actor(req), req.params.id));
+  app.delete<{ Params: { id: string } }>("/chatgpt/device/:id", { schema: { ...secure, params: deviceParams } }, async req => {
+    await devices.cancel(await actor(req), req.params.id); return { ok: true };
+  });
   app.post<{ Body: { accountId: string | null } }>("/chatgpt/pairing", {
     schema: { ...secure, body: object({ accountId: { type: ["string", "null"], minLength: 1, maxLength: 30 } }) },
     config: { rateLimit: { max: 5, timeWindow: "1 minute" } },

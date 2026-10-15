@@ -6,6 +6,7 @@ export interface ChatgptAccountSummary {
   active: boolean;
   blocked: boolean;
   creditsConfirmed: boolean;
+  provider?: "oauth" | "device";
 }
 export interface ChatgptStatus {
   enabled: boolean;
@@ -14,3 +15,10 @@ export interface ChatgptStatus {
   accounts: ChatgptAccountSummary[];
 }
 export interface ChatgptModel { slug: string; displayName: string }
+export interface ChatgptDeviceStatus {
+  id: string;
+  status: "PENDING" | "COMPLETE" | "FAILED" | "CANCELLED" | "EXPIRED";
+  verificationUrl: string;
+  userCode: string;
+  expiresAt: string;
+}

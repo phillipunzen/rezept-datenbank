@@ -8,8 +8,9 @@ import { hashToken } from "../lib/password";
 import { connectionSecrets } from "../lib/connection-secrets";
 import { chatgptProvider, ChatgptProviderError, type ChatgptFetch, type ChatgptTokens } from "../integrations/chatgpt-provider";
 import type { ChatgptStatus } from "../../shared/chatgpt";
+import type { CodexDeviceService } from "./codex-device";
 
-export function chatgptService(db: PrismaClient, config: Config, customFetch?: ChatgptFetch) {
+export function chatgptService(db: PrismaClient, config: Config, customFetch?: ChatgptFetch, devices?: CodexDeviceService) {
   const provider = chatgptProvider(customFetch), secrets = connectionSecrets(config, "chatgpt");
   const lockUser = async (tx: Prisma.TransactionClient, userId: string) => {
     await tx.$queryRaw`SELECT id FROM User WHERE id = ${userId} FOR UPDATE`;
@@ -64,7 +65,7 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
       const accounts = await db.chatgptAccount.findMany({ where: { userId }, orderBy: { id: "asc" } });
       return { enabled: config.chatgpt.enabled, secureOrigin: config.origin.startsWith("https://"), creditsDisabledConfirmed: config.chatgpt.creditsDisabledConfirmed,
         accounts: accounts.map((a, i) => ({ id: a.id, email: a.email, label: `ChatGPT ${i + 1}`, active: a.active,
-          connected: a.encryptedTokens !== null, blocked: a.blocked, creditsConfirmed: a.creditsConfirmed })) };
+          connected: a.encryptedTokens !== null, blocked: a.blocked, creditsConfirmed: a.creditsConfirmed, provider: a.provider === "device" ? "device" : "oauth" })) };
     },
     async start(userId: string, accountId: string | null) {
       enabled();
@@ -139,6 +140,8 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
       if (!change.count) throw new RecipeError(404, "Konto nicht gefunden.");
     },
     async disconnect(userId: string, accountId: string) {
+      const attempts = await db.chatgptDeviceAttempt.findMany({ where: { userId, status: "PENDING" } });
+      for (const attempt of attempts) await devices?.cancel(userId, attempt.id);
       // Keep the issued-client/identity mapping for future sign-in. Stop all local use first.
       const previous = await db.$transaction(async tx => {
         await tx.$queryRaw`SELECT id FROM ChatgptAccount WHERE id = ${accountId} FOR UPDATE`;
@@ -150,6 +153,12 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
       });
       if (!previous.encryptedTokens) return { revoked: true };
       try {
+        if (previous.provider === "device") {
+          const saved = await secrets.decrypt<{ authFile: string }>(previous.encryptedTokens);
+          if (!devices) throw Error("Device runtime unavailable");
+          await devices.logout(saved.authFile);
+          return { revoked: true };
+        }
         const tokens = await secrets.decrypt<ChatgptTokens>(previous.encryptedTokens);
         await provider.revoke(previous.clientId, tokens.refreshToken);
         return { revoked: true };
@@ -158,15 +167,23 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
     async models(userId: string) {
       enabled();
       const account = await selected(userId);
+      if (account.provider === "device") {
+        if (!devices) throw new RecipeError(503, "Codex-Verbindung nicht verfügbar.");
+        return devices.models(userId, account.id);
+      }
       try { return await provider.models(await access(userId, account.id)); }
       catch (error) { return blockedOnFailure(account.id, error); }
     },
     async recognize(userId: string, model: string, image: Buffer, instructions: string) {
       enabled();
       if (!config.chatgpt.creditsDisabledConfirmed)
-        throw new RecipeError(403, "Die Erkennung bleibt gesperrt, bis der Betreiber das Credit-Limit für diese Verbindung in ChatGPT geprüft und auf 0 gesetzt hat. Die App kann dieses Limit nicht selbst prüfen oder setzen.");
+        throw new RecipeError(403, "Die Erkennung bleibt gesperrt, bis der Betreiber die Nutzung ohne Zusatzguthaben und automatische Aufladung geprüft und bestätigt hat.");
       const account = await selected(userId), lease = randomBytes(32).toString("hex");
-      if (!account.creditsConfirmed) throw new RecipeError(403, "Bitte zuerst für dieses ChatGPT-Konto bestätigen, dass das Credit-Limit dieser App in ChatGPT auf 0 steht.");
+      if (!account.creditsConfirmed) throw new RecipeError(403, "Bitte zuerst für dieses ChatGPT-Konto die Nutzung ohne Zusatzguthaben bestätigen.");
+      if (account.provider === "device") {
+        if (!devices) throw new RecipeError(503, "Codex-Verbindung nicht verfügbar.");
+        return devices.recognize(userId, account.id, model, image, instructions);
+      }
       const acquired = await db.chatgptAccount.updateMany({ where: { id: account.id, userId, active: true, blocked: false, encryptedTokens: { not: null },
         OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseToken: lease, leaseUntil: new Date(Date.now() + 120000) } });
       if (!acquired.count) throw new RecipeError(409, "Für dieses Konto läuft bereits eine Erkennung. Bitte warten.");
