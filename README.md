@@ -10,6 +10,7 @@ Die App benötigt eine **eigene MariaDB**. Der normale Docker-Compose-Start betr
 
 - Rezepte mit Zutaten, Gruppen, skalierten Mengen, geordneten Schritten, Bildern, Tags, Kategorien, Nährwerten und Allergenen. Favoriten, Bewertungen, Suche, Druck, Duplizieren, Versionshistorie und Papierkorb.
 - Website-Link-Import aus JSON-LD/Microdata mit Bild und bearbeitbarer Vorschau. JSON-Import/Export sowie Tandoor-Default-ZIP mit Vorschau, Hintergrundimport und Ergebnisbericht.
+- Optionaler Fotoimport für gedruckte und handschriftliche Rezepte mit persönlichem ChatGPT-Tarif, Mengenwarnungen und bearbeitbarer, zunächst privater Vorschau. Erfordert eine separate Kontoverbindung und manuell gesetzte Credit-Limits; standardmäßig gesperrt. [Einrichtung und Kostengrenzen](docs/PHOTO_IMPORT.md).
 - Haushalte mit Rollen, Einladungen und gezielten Freigaben für private Rezepte. Gemeinsame Rezeptbücher, Tages-/Wochenplanung und Einkaufslisten mit Mengenaggregation und Konfliktprüfung.
 - Kochmodus mit großen Schritten, Timern, Vollbild und Wake Lock. Persönliche Kochhistorie, bestätigte TM6-Parameter und eigener Geräteexport; keine direkte Gerätesteuerung.
 - Öffentlicher Rezeptkatalog ohne Anmeldung unter `/entdecken` und widerrufbare Rezeptlinks mit QR-Code und Recipe-JSON-LD.

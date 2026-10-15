@@ -14,6 +14,7 @@ import { RecipeEditor } from "./recipe-editor";
 import { RecipeView } from "./recipe-detail";
 import { uploadImage, type Metadata } from "./api";
 import { RecipeUrlImport } from "./recipe-url-import";
+import { RecipePhotoImport } from "./recipe-photo-import";
 import type { RecipeImportPreview } from "../../../shared/recipe-import";
 export function RecipeWorkspace({
   householdId,
@@ -72,9 +73,9 @@ export function RecipeWorkspace({
     };
   }, [initialRecipeId, t.failed]);
   useEffect(() => {
-    onDirty(dirty);
+    onDirty(dirty || importBusy);
     return () => onDirty(false);
-  }, [dirty, onDirty]);
+  }, [dirty, importBusy, onDirty]);
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -226,7 +227,7 @@ export function RecipeWorkspace({
           <RecipeUrlImport
             householdId={householdId}
             locale={locale}
-            busy={busy}
+            busy={busy || importBusy}
             onLoading={setImportBusy}
             onReplace={() => !dirty || window.confirm(t.discard)}
             onImport={(preview) => {
@@ -237,6 +238,19 @@ export function RecipeWorkspace({
             }}
           />
         )}
+        {!selected && <RecipePhotoImport
+          householdId={householdId}
+          locale={locale}
+          busy={busy || importBusy}
+          onLoading={setImportBusy}
+          onReplace={() => !dirty || window.confirm(t.discard)}
+          onImport={preview => {
+            setImportPreview(preview);
+            setDirty(true);
+            setError("");
+            setEditorGeneration(value => value + 1);
+          }}
+        />}
         {!selected && importPreview && (
           <section
             className="panel recipe-import-preview"

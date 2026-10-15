@@ -18,6 +18,7 @@ async function main() {
     void Promise.all([
       db.passwordReset.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
       db.oidcAttempt.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
+      db.chatgptPairing.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
       db.auditEvent.deleteMany({
         where: { createdAt: { lt: new Date(Date.now() - 90 * 86400000) } },
       }),

@@ -1,4 +1,5 @@
 import { publicCatalogRoutes } from "./routes/public-catalog";
+import { chatgptRoutes } from "./routes/chatgpt";
 import { cookidooRoutes } from "./routes/cookidoo";
 import { accountRoutes } from "./routes/accounts";
 import { oidcRoutes } from "./routes/oidc";
@@ -29,6 +30,7 @@ export async function buildApp(
     recipeFetcher?: RemoteFetcher;
     cookidooProvider?: import("./integrations/cookidoo-provider").CookidooProvider;
     oidcFetch?: import("openid-client").CustomFetch;
+    chatgptFetch?: import("./integrations/chatgpt-provider").ChatgptFetch;
   } = {},
 ) {
   const app = Fastify({
@@ -60,6 +62,7 @@ export async function buildApp(
           "/api/v1/recipes/{id}/images",
           "/api/v1/recipe-imports/tandoor",
           "/api/v1/auth/avatar",
+          "/api/v1/recipe-imports/photo/preview",
         ]) {
           const upload = document.openapiObject.paths?.[path]?.post;
           if (upload)
@@ -177,6 +180,7 @@ export async function buildApp(
       await authRoutes(api, db, config);
       await accountRoutes(api, db, config);
       await oidcRoutes(api, db, config, options.oidcFetch);
+      await chatgptRoutes(api, db, config, options.chatgptFetch);
       await householdRoutes(api, db, config);
       await planningRoutes(api, db, config);
       await cookidooRoutes(api, db, config, options.cookidooProvider);

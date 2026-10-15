@@ -41,6 +41,8 @@ export function readConfig(
   )
     throw new Error("COOKIDOO_ENCRYPTION_KEY muss 32 Byte als Hex enthalten.");
   const issuer = env.OIDC_ISSUER?.trim();
+  if (env.CHATGPT_ENCRYPTION_KEY && !/^[a-f0-9]{64}$/.test(env.CHATGPT_ENCRYPTION_KEY))
+    throw new Error("CHATGPT_ENCRYPTION_KEY muss 32 Byte als Hex enthalten.");
   if (
     issuer &&
     (!env.OIDC_CLIENT_ID ||
@@ -50,6 +52,11 @@ export function readConfig(
     throw new Error("OIDC benötigt HTTPS-Issuer und CLIENT_ID.");
   return {
     origin,
+    chatgpt: {
+      enabled: bool("CHATGPT_PHOTO_IMPORT_ENABLED", false),
+      creditsDisabledConfirmed: bool("CHATGPT_CREDITS_DISABLED_CONFIRMED", false),
+      key: env.CHATGPT_ENCRYPTION_KEY || null,
+    },
     publicCatalogEnabled: bool("PUBLIC_CATALOG_ENABLED", false),
     cookidooEnabled: bool("COOKIDOO_ENABLED", false),
     cookidooAllowHttp: bool("COOKIDOO_ALLOW_HTTP", false),

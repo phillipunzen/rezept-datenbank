@@ -55,6 +55,8 @@ model User {
   auditEvents         AuditEvent[]
   publications        RecipePublication[]
   cookidooConnection  CookidooConnection?
+  chatgptAccounts     ChatgptAccount[]
+  chatgptPairings     ChatgptPairing[]
 }
 
 model Session {
@@ -678,4 +680,37 @@ model RecipePublication {
 
   @@index([publishedAt, recipeId])
   @@index([publisherId])
+}
+
+// OAuth credentials are encrypted; keys and host identity stay in the upload volume.
+model ChatgptAccount {
+  id               String   @id @default(cuid()) @db.VarChar(30)
+  userId           String   @db.VarChar(30)
+  clientId         String   @db.VarChar(255)
+  subject          String   @db.VarChar(255)
+  email            String   @db.VarChar(254)
+  encryptedTokens  String?  @db.LongText
+  active           Boolean  @default(false)
+  blocked          Boolean  @default(false)
+  creditsConfirmed Boolean  @default(false)
+  leaseToken       String?  @db.Char(64)
+  leaseUntil       DateTime?
+  revision         Int      @default(1)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId, active])
+}
+
+model ChatgptPairing {
+  tokenHash        String   @id @db.Char(64)
+  userId           String   @db.VarChar(30)
+  accountId        String?  @db.VarChar(30)
+  accountRevision  Int?
+  nonce            String   @db.VarChar(100)
+  expiresAt        DateTime
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

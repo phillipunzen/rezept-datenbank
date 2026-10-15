@@ -2,12 +2,13 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { Config } from "./config";
-export function connectionSecrets(config: Config) {
+export function connectionSecrets(config: Config, namespace: "cookidoo" | "chatgpt" = "cookidoo") {
   let secret: Promise<Buffer> | undefined;
   async function load() {
-    if (config.cookidooKey) return Buffer.from(config.cookidooKey, "hex");
+    const configured = namespace === "cookidoo" ? config.cookidooKey : config.chatgpt.key;
+    if (configured) return Buffer.from(configured, "hex");
     await mkdir(config.uploadDir, { recursive: true });
-    const path = join(config.uploadDir, ".cookidoo-encryption-key");
+    const path = join(config.uploadDir, `.${namespace}-encryption-key`);
     try {
       await writeFile(path, randomBytes(32).toString("hex"), {
         flag: "wx",
@@ -29,7 +30,7 @@ export function connectionSecrets(config: Config) {
     async encrypt(value: unknown) {
       const iv = randomBytes(12),
         cipher = createCipheriv("aes-256-gcm", await key(), iv);
-      cipher.setAAD(Buffer.from("recipe-cookidoo-v1"));
+      cipher.setAAD(Buffer.from(`recipe-${namespace}-v1`));
       const content = Buffer.concat([
         cipher.update(JSON.stringify(value), "utf8"),
         cipher.final(),
@@ -54,7 +55,7 @@ export function connectionSecrets(config: Config) {
         await key(),
         Buffer.from(value.iv, "base64"),
       );
-      cipher.setAAD(Buffer.from("recipe-cookidoo-v1"));
+      cipher.setAAD(Buffer.from(`recipe-${namespace}-v1`));
       cipher.setAuthTag(Buffer.from(value.tag, "base64"));
       return JSON.parse(
         Buffer.concat([

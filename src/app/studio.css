@@ -1690,3 +1690,19 @@ a,
     padding: 24px;
   }
 }
+/* Photo imports keep long connection codes and previews usable on narrow screens. */
+.recipe-photo-import { margin-block: 1rem; min-width: 0; }
+.recipe-photo-import h2 { display: flex; align-items: center; gap: .5rem; }
+.photo-connection summary { cursor: pointer; padding-block: .75rem; overflow-wrap: anywhere; }
+.photo-connection-content { display: grid; gap: 1rem; padding-block: .75rem; }
+.photo-account { display: grid; gap: .5rem; padding-block: .75rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.photo-pairing input { font-family: monospace; font-size: .85rem; width: 100%; min-width: 0; }
+.photo-import-form { display: grid; gap: .9rem; margin-top: 1rem; }
+.photo-source-preview { display: block; max-width: 100%; max-height: 20rem; object-fit: contain; border-radius: .8rem; }
+.photo-models { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.photo-models label { flex: 1 1 14rem; min-width: 0; }
+.recipe-photo-import input[type=file] { width: 100%; min-width: 0; }
+.recipe-photo-import .actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.photo-import-form label, .photo-connection-content label { margin: 0; }
+.recipe-photo-import .checkbox-line { display: flex; flex-direction: row; gap: .6rem; align-items: start; min-height: 44px; }
+.recipe-photo-import .checkbox-line input { flex: 0 0 18px; width: 18px; height: 18px; min-height: 18px; padding: 0; margin: .1rem 0 0; accent-color: var(--accent); }
