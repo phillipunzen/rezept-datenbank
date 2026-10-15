@@ -70,7 +70,33 @@ OIDC_REGISTRATION_ENABLED=true
 
 `OIDC_REGISTRATION_ENABLED=true` erlaubt neuen OIDC-Identitäten ein eigenes App-Konto mit eigenem Haushalt; sie erhalten keine globalen Administratorrechte. Diese Einstellung ist unabhängig von der normalen Passwortregistrierung. Die erste App-Einrichtung erfolgt weiterhin mit dem Einrichtungscode.
 
-Neue Konten benötigen `email` und **`email_verified=true`** im signierten ID-Token. Seit Authentik 2025.10 liefert die Standard-E-Mail-Zuordnung zunächst `false`. Für neue Konten einen tatsächlichen E-Mail-Verifizierungsablauf und die dazu passende Scope-Zuordnung in Authentik verwenden. [Authentik: E-Mail-Adressen bestätigen](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/verify-email-address/). Bestehende, ausdrücklich verknüpfte Konten benötigen für die spätere Anmeldung keine erneute E-Mail-Verifikation.
+Neue Konten benötigen eine gültige `email` im signierten ID-Token. Standardmäßig wird außerdem **`email_verified=true`** verlangt (`OIDC_REQUIRE_EMAIL_VERIFIED=true`). Seit Authentik 2025.10 liefert die Standard-E-Mail-Zuordnung zunächst `false`. Für neue Konten einen tatsächlichen E-Mail-Verifizierungsablauf und die dazu passende Scope-Zuordnung in Authentik verwenden. [Authentik: E-Mail-Adressen bestätigen](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/verify-email-address/). Bestehende, ausdrücklich verknüpfte Konten benötigen für die spätere Anmeldung keine erneute E-Mail-Verifikation.
+
+## Neue Konten ohne E-Mail-Verifizierung
+
+Wenn die Kontoerstellung allein auf der Anmeldung bei deinem OIDC-Anbieter beruhen soll, in `.env` konfigurieren:
+
+```dotenv
+OIDC_REGISTRATION_ENABLED=true
+OIDC_REQUIRE_EMAIL_VERIFIED=false
+```
+
+Die aktuelle `docker-compose.yml` reicht beide Werte an die App weiter. Bei einer älteren Compose-Datei unter `services.app.environment` ergänzen:
+
+```yaml
+OIDC_REQUIRE_EMAIL_VERIFIED: ${OIDC_REQUIRE_EMAIL_VERIFIED:-true}
+```
+
+Anschließend Image laden und App neu erstellen:
+
+```bash
+docker compose pull app
+docker compose up -d app
+```
+
+Mit `false` wird ein neues Konto auch bei `email_verified=false` oder fehlendem Verifizierungsclaim erstellt. Eine gültige E-Mail-Adresse bleibt erforderlich. Vorhandene Konten mit gleicher E-Mail werden weiterhin nicht automatisch verbunden; sie müssen ausdrücklich verknüpft werden. Signatur, Issuer, Audience, State, Nonce und PKCE werden unverändert geprüft. Diese Option ändert keine Passwortregistrierung und löst keinen E-Mail-Versand aus.
+
+Unter `/api/v1/auth/options` zeigt `oidcRequireEmailVerified: false`, dass die Einstellung im laufenden Container angekommen ist.
 
 ## Fehler eingrenzen
 

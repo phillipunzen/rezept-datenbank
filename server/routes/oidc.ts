@@ -172,11 +172,12 @@ export async function oidcRoutes(
           if (!settings.registrationEnabled)
             throw new OidcCallbackError("registration_disabled");
           if (
-            claims.email_verified !== true ||
             typeof claims.email !== "string" ||
             !/^\S+@\S+\.\S+$/.test(claims.email) ||
             claims.email.length > 254
           )
+            throw new OidcCallbackError("email_missing");
+          if (settings.requireEmailVerified && claims.email_verified !== true)
             throw new OidcCallbackError("email_unverified");
           const email = claims.email.toLowerCase().trim();
           if (await db.user.findUnique({ where: { email } }))

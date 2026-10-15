@@ -71,6 +71,7 @@ export function readConfig(
           clientId: env.OIDC_CLIENT_ID!,
           clientSecret: env.OIDC_CLIENT_SECRET,
           registrationEnabled: bool("OIDC_REGISTRATION_ENABLED", false),
+          requireEmailVerified: bool("OIDC_REQUIRE_EMAIL_VERIFIED", true),
           label: env.OIDC_LABEL?.slice(0, 80) || "Single Sign-On",
         }
       : null,

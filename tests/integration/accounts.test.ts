@@ -67,7 +67,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       challenge: string;
       email: string;
       subject: string;
-      verified: boolean;
+      verified: boolean | null;
     }
   >();
   const app = await buildApp(db, config, {
@@ -112,7 +112,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
               sub: grant.subject,
               nonce: grant.nonce,
               email: grant.email,
-              email_verified: grant.verified,
+              ...(grant.verified === null ? {} : { email_verified: grant.verified }),
               name: "SSO User",
               iat: Math.floor(Date.now() / 1000),
               exp: Math.floor(Date.now() / 1000) + 300,
@@ -287,7 +287,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       email: string,
       subject: string,
       link = false,
-      verified = true,
+      verified: boolean | null = true,
       headers = first.headers,
     ) {
       const start = await inject("POST", "/auth/oidc/start", { link }, headers);
@@ -396,6 +396,27 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       unverified.callback.headers.location,
       config.origin + "/#authError=email_unverified",
     );
+    assert.equal(await db.user.findUnique({ where: { email: "unverified@accounts.test" } }), null);
+    config.oidc!.requireEmailVerified = false;
+    const allowed = await flow("unverified@accounts.test", "subject-unverified", false, false);
+    assert.equal(allowed.callback.headers.location, config.origin + "/#oidc=success");
+    const allowedCookie = ([] as string[]).concat(allowed.callback.headers["set-cookie"] ?? [])
+      .find((cookie) => cookie.startsWith("session="));
+    assert.ok(allowedCookie);
+    const allowedSession = await app.inject({
+      url: "/api/v1/auth/me", headers: { cookie: allowedCookie.split(";")[0] },
+    });
+    assert.equal(allowedSession.statusCode, 200);
+    assert.equal(allowedSession.json().user.email, "unverified@accounts.test");
+    assert.equal(allowedSession.json().user.isAdmin, false);
+    const missingVerification = await flow("no-claim@accounts.test", "subject-no-claim", false, null);
+    assert.equal(missingVerification.callback.headers.location, config.origin + "/#oidc=success");
+    const invalidEmail = await flow("", "subject-no-email", false, false);
+    assert.equal(invalidEmail.callback.headers.location, config.origin + "/#authError=email_missing");
+    assert.equal(await db.oidcIdentity.count({ where: { subject: "subject-no-email" } }), 0);
+    const unverifiedCollision = await flow(first.user.email, "subject-unverified-collision", false, false);
+    assert.equal(unverifiedCollision.callback.headers.location, config.origin + "/#authError=account_exists");
+    assert.equal(await db.oidcIdentity.count({ where: { subject: "subject-unverified-collision" } }), 0);
     const record = await db.auditEvent.findFirstOrThrow({
       where: { actorId: first.user.id },
     });

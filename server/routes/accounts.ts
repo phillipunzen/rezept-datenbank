@@ -41,6 +41,7 @@ export async function accountRoutes(
     passwordResetEnabled: !!config.smtp,
     oidcEnabled: !!config.oidc,
     oidcRegistrationEnabled: config.oidc?.registrationEnabled ?? false,
+    oidcRequireEmailVerified: config.oidc?.requireEmailVerified ?? true,
     oidcLabel: config.oidc?.label ?? "",
   }));
   app.post<{ Body: { email: string } }>(

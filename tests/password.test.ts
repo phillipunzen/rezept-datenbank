@@ -44,3 +44,15 @@ test("external MariaDB configuration is mandatory and secure cookies follow HTTP
   assert.throws(() => readConfig({ ...base, REGISTRATION_ENABLED: "yes" }));
   assert.throws(() => readConfig({ ...base, COOKIE_SECURE: "false" }));
 });
+
+test("OIDC email verification can be explicitly disabled with a validated boolean", () => {
+  const env = {
+    DATABASE_URL: "mysql://user:pass@external-db:3306/recipes",
+    INITIAL_SETUP_TOKEN: "x".repeat(64),
+    OIDC_ISSUER: "https://auth.example.test/application/o/recipes/",
+    OIDC_CLIENT_ID: "recipes",
+  };
+  assert.equal(readConfig(env).oidc!.requireEmailVerified, true);
+  assert.equal(readConfig({ ...env, OIDC_REQUIRE_EMAIL_VERIFIED: "false" }).oidc!.requireEmailVerified, false);
+  assert.throws(() => readConfig({ ...env, OIDC_REQUIRE_EMAIL_VERIFIED: "no" }));
+});

@@ -11,6 +11,10 @@ export const oidcFailures = {
     de: "Der Anmeldedienst hat keine bestätigte E-Mail-Adresse übermittelt. Bitte lasse die E-Mail-Verifizierung für dein Konto beim Anmeldedienst prüfen.",
     en: "The sign-in provider did not supply a verified email address. Please have email verification checked for your provider account.",
   },
+  email_missing: {
+    de: "Der Anmeldedienst hat keine gültige E-Mail-Adresse übermittelt. Bitte lasse die E-Mail-Zuordnung beim Anmeldedienst prüfen.",
+    en: "The sign-in provider did not supply a valid email address. Please have its email mapping checked.",
+  },
   account_exists: {
     de: "Für diese E-Mail-Adresse besteht bereits ein Rezept-Konto. Melde dich mit dessen Passwort an und wähle in den Einstellungen „Anmeldekonto verknüpfen“.",
     en: "A recipe account already exists for this email address. Sign in with its password, then choose “Link sign-in account” in Settings.",

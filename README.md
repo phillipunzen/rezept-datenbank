@@ -170,7 +170,7 @@ Weitere Einstellungen stehen in `.env.example`:
 | Öffentlicher Katalog | `PUBLIC_CATALOG_ENABLED` |
 | Öffentliche Registrierung | `REGISTRATION_ENABLED` |
 | Passwortreset per E-Mail | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_REQUIRE_TLS`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` |
-| OIDC-Anmeldung | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, optional `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `OIDC_REGISTRATION_ENABLED` |
+| OIDC-Anmeldung | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, optional `OIDC_CLIENT_SECRET`, `OIDC_LABEL`, `OIDC_REGISTRATION_ENABLED`, `OIDC_REQUIRE_EMAIL_VERIFIED` |
 | Cookidoo-Einkaufslisten | `COOKIDOO_ENABLED`, `COOKIDOO_ALLOW_HTTP`, optional `COOKIDOO_ENCRYPTION_KEY` |
 
 Authentik Schritt für Schritt einrichten: [OIDC mit Authentik](docs/OIDC_AUTHENTIK.md). Der Anmeldebutton erscheint automatisch, sobald `OIDC_ISSUER` und `OIDC_CLIENT_ID` gesetzt sind. Bestehende Konten können unter Einstellungen → „Anmeldekonto verknüpfen“ verbunden werden.
