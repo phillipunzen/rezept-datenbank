@@ -1,5 +1,6 @@
 "use client";
 import { AccountManagement } from "./account-management";
+import { ChatgptSharedSettings } from "./chatgpt-shared-settings";
 import { useState } from "react";
 import { Save, ShieldCheck } from "lucide-react";
 import { api, type User } from "./api";
@@ -147,6 +148,7 @@ export function Profile({
           {locale === "de" ? "Offline-Küche öffnen" : "Open offline kitchen"}
         </a>
       </section>
+      {user.isAdmin && <ChatgptSharedSettings locale={locale} />}
       <AccountManagement user={user} locale={locale} />
       {feedback && (
         <div className="success-box" role="status">

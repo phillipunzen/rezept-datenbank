@@ -700,8 +700,18 @@ model ChatgptAccount {
   revision         Int      @default(1)
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  sharedInstance   ChatgptInstance?
+
   @@unique([userId, clientId])
   @@index([userId, active])
+}
+
+// Keep enabled=true when the account disappears: never silently use a personal fallback.
+model ChatgptInstance {
+  id              String          @id @db.VarChar(30)
+  enabled         Boolean         @default(false)
+  accountId       String?         @unique @db.VarChar(30)
+  account         ChatgptAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
 }
 
 model ChatgptDeviceAttempt {

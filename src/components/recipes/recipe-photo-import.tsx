@@ -9,6 +9,8 @@ import type { RecipeImportPreview } from "../../../shared/recipe-import";
 const messages = {
   de: {
     title: "Rezept aus Foto", hint: "Gedruckte und handschriftliche Rezepte als Foto übernehmen. Du prüfst und bearbeitest das Ergebnis vor dem Speichern.",
+    shared: "Zentrale ChatGPT-Verbindung", sharedHint: "Die KI-Erkennung verwendet die vom Administrator freigegebene Verbindung. Du brauchst kein eigenes ChatGPT-Konto.", sharedUnavailable: "Die zentrale Verbindung ist nicht verfügbar oder noch nicht freigegeben. Bitte den Administrator informieren.", sharedConsent: "Ich möchte dieses Foto zur Erkennung über die zentrale ChatGPT-Verbindung an OpenAI senden.",
+    personal: "Meine ChatGPT-Verbindungen",
     connection: "ChatGPT-Verbindung", loading: "Verbindung wird geprüft …", refresh: "Verbindungsstatus aktualisieren",
     disabled: "Die Fotoerkennung wurde vom Betreiber noch nicht freigegeben.", https: "Die Verbindung zu ChatGPT benötigt eine HTTPS-Adresse für diese App.",
     operator: "Die Erkennung bleibt gesperrt, bis der Betreiber die Nutzung ohne zusätzliche Credits freigegeben hat.",
@@ -26,6 +28,8 @@ const messages = {
   },
   en: {
     title: "Recipe from photo", hint: "Import printed or handwritten recipes from a photo. Review and edit the result before saving.",
+    shared: "Shared ChatGPT connection", sharedHint: "AI recognition uses the connection shared by the administrator. You do not need your own ChatGPT account.", sharedUnavailable: "The shared connection is unavailable or not yet approved. Please contact the administrator.", sharedConsent: "Send this photo to OpenAI for recognition using the shared ChatGPT connection.",
+    personal: "My ChatGPT connections",
     connection: "ChatGPT connection", loading: "Checking connection …", refresh: "Refresh connection status",
     disabled: "Photo recognition has not been enabled by the operator.", https: "Connecting ChatGPT requires an HTTPS address for this app.",
     operator: "Recognition stays locked until the operator enables usage without additional credits.",
@@ -52,8 +56,10 @@ export function RecipePhotoImport({ householdId, locale, busy, onLoading, onRepl
   const [credits, setCredits] = useState(false), [file, setFile] = useState<File | null>(null), [imageUrl, setImageUrl] = useState("");
   const [models, setModels] = useState<ChatgptModel[]>([]), [model, setModel] = useState(""), [consent, setConsent] = useState(false), [keep, setKeep] = useState(false);
   const active = status?.accounts.find(a => a.active && a.connected);
+  const shared = status?.shared?.enabled ? status.shared : null;
+  const effective = shared || active;
   const locked = busy || working || loading;
-  const ready = !!(status?.enabled && status.secureOrigin && status.creditsDisabledConfirmed && active?.provider === "device" && active.creditsConfirmed && !active.blocked);
+  const ready = !!(status?.enabled && status.secureOrigin && status.creditsDisabledConfirmed && effective?.provider === "device" && effective.creditsConfirmed && !effective.blocked && (shared ? shared.connected : !!active));
   async function refresh() {
     const next = await api<ChatgptStatus>("/chatgpt");
     if (mounted.current) {
@@ -139,8 +145,14 @@ export function RecipePhotoImport({ householdId, locale, busy, onLoading, onRepl
     {status && !status.enabled && <p className="small muted">{t.disabled}</p>}
     {status?.enabled && !status.secureOrigin && <p className="error-box">{t.https}</p>}
     {status?.enabled && status.secureOrigin && <>
-      <details className="photo-connection" open={!active || !active.creditsConfirmed || !!active.blocked || !!device}>
-        <summary>{t.connection}{active ? ` · ${active.email || active.label}` : ""}</summary>
+      {shared && <div className="photo-account">
+        <strong>{t.shared}</strong>
+        <p className="small">{t.sharedHint}</p>
+        {!ready && <p className="small error-box">{t.sharedUnavailable}</p>}
+        <button type="button" className="text-button" disabled={locked} onClick={() => void action(async () => { await refresh(); })}><RefreshCw size={15} /> {t.refresh}</button>
+      </div>}
+      {(!shared || status.canManageShared) && <details className="photo-connection" open={!active || !active.creditsConfirmed || !!active.blocked || !!device}>
+        <summary>{shared ? t.personal : t.connection}{active ? ` · ${active.email || active.label}` : ""}</summary>
         <div className="photo-connection-content">
           <p className="small">{t.credits} <a href="https://chatgpt.com/#settings/Usage" target="_blank" rel="noopener noreferrer">{t.manage}</a></p>
           {!status.creditsDisabledConfirmed && <p className="small error-box">{t.operator}</p>}
@@ -178,8 +190,8 @@ export function RecipePhotoImport({ householdId, locale, busy, onLoading, onRepl
             <p className="small"><a href="https://github.com/phillipunzen/rezept-datenbank/blob/main/docs/PHOTO_IMPORT.md" target="_blank" rel="noopener noreferrer">{t.guide}</a></p>
           </div>}
         </div>
-      </details>
-      {active && <form onSubmit={recognize} className="photo-import-form">
+      </details>}
+      {(shared || active) && <form onSubmit={recognize} className="photo-import-form">
         <label>{t.image}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={locked} onChange={e => {
           const selected = e.target.files?.[0]; setConsent(false); setError("");
           if (!selected) { setFile(null); return; }
@@ -195,7 +207,7 @@ export function RecipePhotoImport({ householdId, locale, busy, onLoading, onRepl
         </div>
         <p className="muted small">{t.modelHint}</p>
         <label className="checkbox-line"><input type="checkbox" checked={keep} disabled={locked} onChange={e => setKeep(e.target.checked)} />{t.keep}</label>
-        <label className="checkbox-line"><input type="checkbox" checked={consent} disabled={locked || !ready} onChange={e => setConsent(e.target.checked)} />{t.consent}</label>
+        <label className="checkbox-line"><input type="checkbox" checked={consent} disabled={locked || !ready} onChange={e => setConsent(e.target.checked)} />{shared ? t.sharedConsent : t.consent}</label>
         <button type="submit" className="button" disabled={locked || !ready || !file || !model || !consent}><Camera size={17} />{loading ? t.recognizing : t.submit}</button>
       </form>}
     </>}

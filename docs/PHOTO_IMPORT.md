@@ -16,6 +16,21 @@ Die Verbindung verwendet den offiziellen **Codex App Server** mit `account/login
 
 Offizielle Beschreibung: [Device-Code-Ablauf im Codex App Server](https://learn.chatgpt.com/docs/app-server), [Device-Code-Freigabe im ChatGPT-Konto](https://learn.chatgpt.com/docs/auth). Stand: 15. Oktober 2026.
 
+## Eine zentrale Verbindung für alle Benutzer
+
+Ein App-Administrator kann eine eigene, bereits per Device Code verbundene ChatGPT-Verbindung unter **Einstellungen → Zentrale ChatGPT-Verbindung → Für alle Benutzer verwenden** freigeben. Diese Einstellung wird in der externen Datenbank gespeichert; eine neue Environment-Variable ist dafür nicht nötig. Bestehende Verbindungen werden beim Update nicht automatisch freigegeben.
+
+Solange die zentrale Freigabe aktiv ist, laufen **alle KI-Anfragen der App** (derzeit Modellauswahl und Foto-/Handschrifterkennung) über genau diese Verbindung, auch wenn ein Benutzer bereits eine eigene Verbindung hat. Die Benutzer brauchen dann kein eigenes ChatGPT-Konto. Das ausgewählte zentrale Konto bleibt unabhängig von der persönlichen Kontoauswahl des Administrators festgelegt. Nutzungslimit und Sperren werden gemeinsam verwendet. Gleichzeitige Zugriffe auf dieselbe Verbindung werden serverseitig serialisiert; bei einer laufenden Operation zeigt ein weiterer Versuch eine Meldung zum erneuten Versuchen.
+
+1. Das Administratorkonto beim Fotoimport mit ChatGPT verbinden.
+2. Die bestehenden Kostenfreigaben für Betreiber und verbundenes Konto prüfen und bestätigen.
+3. Unter **Einstellungen → Zentrale ChatGPT-Verbindung** beim gewünschten Konto **Für alle Benutzer verwenden** wählen.
+4. Andere Benutzer öffnen **Rezept hinzufügen → Rezept aus Foto**. Dort erscheint **Zentrale ChatGPT-Verbindung**, anschließend können sie Modell und Foto auswählen und die Übermittlung an OpenAI bestätigen.
+
+Andere Benutzer erhalten weder E-Mail-Adresse noch Verbindungskennung oder Zugangsdaten des Administratorkontos. Sie können dieses Konto nicht neu verbinden, bestätigen, entsperren oder trennen. Die Zustimmung zum Versand ihres Fotos bleibt nötig. Haushaltsberechtigungen und die private, bearbeitbare Vorschau gelten unverändert; die gemeinsame KI-Verbindung gibt keinen Zugriff auf fremde Rezepte.
+
+Wird die zentrale Verbindung getrennt, gelöscht, wegen Nutzungslimits angehalten oder ihr Eigentümer gesperrt bzw. zum normalen Benutzer herabgestuft, bleibt die zentrale Erkennung gesperrt. **Es gibt keinen automatischen Wechsel auf eine persönliche Verbindung.** Eine bereits an OpenAI übermittelte Anfrage lässt sich durch das Beenden der Freigabe nicht zurückholen. Ein Administrator kann die zentrale Verbindung bewusst ersetzen oder über **Zentrale Freigabe beenden** die persönlichen Verbindungen wieder freigeben. Erneute Anmeldung und Kostenbestätigung verwaltet der Eigentümer beim Fotoimport.
+
 ## Ohne zusätzliche Kosten betreiben
 
 Der Device-Code-Ablauf nutzt die von Codex verwaltete ChatGPT-Anmeldung. **Keinen API-Schlüssel hinterlegen.** Die App übernimmt keine private Codex-Sitzung vom Administrator und verwendet keine API-Key-Ausweichroute.
@@ -25,7 +40,7 @@ Vor der Freigabe zusätzliches **Codex-Guthaben und automatische Guthabenaufladu
 Es gibt zwei ausdrückliche Freigaben:
 
 - Der Betreiber setzt `CHATGPT_CREDITS_DISABLED_CONFIRMED=true` erst nach Prüfung der Kontoeinstellungen.
-- Jeder Benutzer bestätigt die Nutzung ohne Zusatzguthaben für seine eigene Verbindung in der App.
+- Der Eigentümer bestätigt die Nutzung ohne Zusatzguthaben für die jeweilige Verbindung in der App. Bei zentraler Freigabe gilt diese Bestätigung für das zentrale Konto; andere Benutzer bestätigen sie nicht stellvertretend.
 
 Zusätzlich fragt die App **vor jeder Erkennung** `account/rateLimits/read` ab. Sie startet nur, wenn Codex gewöhnliche enthaltene Nutzung ausdrücklich erlaubt, die gemeldeten Quoten nicht ausgeschöpft sind und die Meldung keinen Zugriff auf Zusatzguthaben oder unbegrenzte Credits ausweist. Fehlende, unbekannte oder widersprüchliche Angaben sperren die Erkennung. Ein Pro-Tarif allein ersetzt diesen Nachweis nicht. Verbrauchsanteile oder zurückliegende Reset-Zeiten werden nicht als selbst ermittelte Freigabe verwendet.
 
@@ -35,7 +50,7 @@ Kontoeinstellungen können sich nach einer Prüfung ändern. Diese Kontrollen si
 
 ## Server einrichten oder aktualisieren
 
-Die Compose-Datei betreibt weiterhin ausschließlich die App mit externer MariaDB über `DATABASE_URL`. Die additive Migration ergänzt Device-Anmeldevorgänge und die Verbindungsart. Vor Updates Datenbank und Upload-Volume sichern.
+Die Compose-Datei betreibt weiterhin ausschließlich die App mit externer MariaDB über `DATABASE_URL`. Die additiven Migrationen ergänzen Device-Anmeldevorgänge, die Verbindungsart und die zentrale Kontoauswahl. Vor Updates Datenbank und Upload-Volume sichern.
 
 Für die erste Einrichtung in `.env` setzen und bei älteren Installationen die entsprechenden Einträge auch in `docker-compose.yml` übernehmen:
 
@@ -69,7 +84,7 @@ Die frühere lokale Anmeldung bleibt für bestehende API-Clients kompatibel. Ber
 
 ## Speicherung und Trennung
 
-Bis zu fünf persönliche Registrierungen lassen sich getrennt verwalten. Ein Haushalt verwendet nicht automatisch das KI-Konto eines anderen Mitglieds. **Verbindung trennen** entfernt die gespeicherten Zugangsdaten und meldet die isolierte Codex-Sitzung ab. Falls die externe Abmeldung nicht bestätigt werden kann, zeigt die App das an; die Sitzung zusätzlich in ChatGPT beenden.
+Bis zu fünf persönliche Registrierungen lassen sich getrennt verwalten. Ohne zentrale Freigabe verwendet ein Haushalt nicht automatisch das KI-Konto eines anderen Mitglieds. Bei zentraler Freigabe verwendet die gesamte Instanz ausschließlich das ausdrücklich gewählte Administratorkonto. **Verbindung trennen** entfernt die gespeicherten Zugangsdaten und meldet die isolierte Codex-Sitzung ab. Falls die externe Abmeldung nicht bestätigt werden kann, zeigt die App das an; die Sitzung zusätzlich in ChatGPT beenden.
 
 Der Codex-Runtime erhält ausschließlich seine eigene isolierte Konfiguration, keine geerbten API-Schlüssel oder privaten Administrator-Sitzungen. Pro Anmeldung oder Operation wird ein geschütztes temporäres Verzeichnis verwendet. Der Runtime verwaltet seine OAuth-Tokens selbst; nach Abschluss werden die aktuellen Anmeldedaten verschlüsselt in der MariaDB abgelegt und die temporären Dateien entfernt. Datenbank-Leases verhindern konkurrierende Erkennungs-/Refresh-Prozesse derselben Verbindung. Eine parallele Trennung darf keine Tokens wiederherstellen.
 

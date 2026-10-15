@@ -30,6 +30,12 @@ export async function chatgptRoutes(app: FastifyInstance, db: PrismaClient, conf
   }
   const secure = { tags: ["ChatGPT photo import"], security: [{ cookieAuth: [] }] };
   app.get("/chatgpt", { schema: secure }, async req => service.status(await actor(req)));
+  app.put<{ Body: { accountId: string | null } }>("/chatgpt/shared", {
+    schema: { ...secure, body: object({ accountId: { type: ["string", "null"], minLength: 1, maxLength: 30 } }) },
+  }, async req => {
+    await service.setShared(await actor(req), req.body.accountId);
+    return { ok: true };
+  });
   app.get("/chatgpt/models", { schema: secure }, async req => ({ models: await service.models(await actor(req)) }));
   app.post<{ Body: { accountId: string | null } }>("/chatgpt/device/start", {
     schema: { ...secure, body: object({ accountId: { type: ["string", "null"], minLength: 1, maxLength: 30 } }) },

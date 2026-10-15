@@ -6,6 +6,7 @@ import { connectionSecrets } from "../lib/connection-secrets";
 import { createCodexRuntime, includedUsageAllowed, type CodexRuntime, type CodexRuntimeFactory } from "../integrations/codex-runtime";
 import { photoExtractionSchema } from "./recipe-photo-import";
 import type { ChatgptDeviceStatus, ChatgptModel } from "../../shared/chatgpt";
+import { chatgptAccountAccess } from "./shared-chatgpt";
 
 export function codexDeviceService(db: PrismaClient, config: Config, factory: CodexRuntimeFactory = createCodexRuntime) {
   const secrets = connectionSecrets(config, "chatgpt");
@@ -30,22 +31,28 @@ export function codexDeviceService(db: PrismaClient, config: Config, factory: Co
     }
     throw new RecipeError(502, "Die Modellliste ist zu groß.");
   }
-  async function withAccount<T>(userId: string, accountId: string, work: (runtime: CodexRuntime) => Promise<T>) {
+  async function withAccount<T>(userId: string, accountId: string, work: (runtime: CodexRuntime, verify: (credits?: boolean) => Promise<void>) => Promise<T>, shared = false) {
     enabled();
     const token = randomBytes(32).toString("hex");
-    const locked = await db.chatgptAccount.updateMany({ where: { id: accountId, userId, provider: "device", active: true, encryptedTokens: { not: null }, blocked: false,
+    const allowed = chatgptAccountAccess(userId, accountId, shared);
+    const locked = await db.chatgptAccount.updateMany({ where: { ...allowed,
       OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseToken: token, leaseUntil: new Date(Date.now() + 115000) } });
     if (!locked.count) throw new RecipeError(409, "Diese Codex-Verbindung ist bereits beschäftigt oder nicht mehr aktiv.");
     let runtime: CodexRuntime | undefined, original: ChatgptAccount | undefined;
     let deadline: NodeJS.Timeout | undefined;
     try {
       original = await db.chatgptAccount.findUniqueOrThrow({ where: { id: accountId } });
-      if (!original.encryptedTokens || !original.active || original.blocked) throw new RecipeError(409, "Die Codex-Verbindung wurde inzwischen geändert.");
+      if (!original.encryptedTokens || (!shared && !original.active) || original.blocked) throw new RecipeError(409, "Die Codex-Verbindung wurde inzwischen geändert.");
       const saved = await secrets.decrypt<{ authFile: string }>(original.encryptedTokens!);
       runtime = await factory(saved.authFile);
       deadline = setTimeout(() => { void runtime?.close(); }, 90000);
       await account(runtime);
-      return await work(runtime);
+      const verify = async (credits = false) => {
+        if (!await db.chatgptAccount.count({ where: { ...allowed, revision: original!.revision, leaseToken: token, ...(credits ? { creditsConfirmed: true } : {}) } }))
+          throw new RecipeError(409, "Die ChatGPT-Verbindung oder ihre Freigabe wurde inzwischen geändert. Bitte neu laden.");
+      };
+      await verify();
+      return await work(runtime, verify);
     } finally {
       if (deadline) clearTimeout(deadline);
       if (runtime) {
@@ -125,20 +132,22 @@ export function codexDeviceService(db: PrismaClient, config: Config, factory: Co
       await db.chatgptDeviceAttempt.updateMany({ where: { id, userId, status: "PENDING" }, data: { status: "CANCELLED", userCode: "" } });
       const entry = running.get(id); if (entry) await entry.runtime.close();
     },
-    models(userId: string, id: string) { return withAccount(userId, id, catalog); },
-    recognize(userId: string, id: string, model: string, image: Buffer, instructions: string) {
-      return withAccount(userId, id, async runtime => {
+    models(userId: string, id: string, shared = false) { return withAccount(userId, id, catalog, shared); },
+    recognize(userId: string, id: string, model: string, image: Buffer, instructions: string, shared = false) {
+      return withAccount(userId, id, async (runtime, verify) => {
         if (!(await catalog(runtime)).some(m => m.slug === model)) throw new RecipeError(400, "Bitte ein verfügbares Modell mit Bildeingabe auswählen.");
         const limits = await runtime.request("account/rateLimits/read");
         if (!includedUsageAllowed(limits)) {
           await db.chatgptAccount.updateMany({ where: { id, userId }, data: { blocked: true } });
           throw new RecipeError(403, "Codex kann enthaltene Nutzung ohne Zusatzguthaben derzeit nicht bestätigen. Bitte Nutzungslimit, Guthaben und automatische Aufladung in ChatGPT prüfen. Die Erkennung bleibt gesperrt.");
         }
+        await verify(true);
         const thread = await runtime.request("thread/start", { model, ephemeral: true, permissions: "recipe_photo", approvalPolicy: "never",
           cwd: runtime.cwd, environments: [], baseInstructions: instructions, developerInstructions: "Lies nur das übermittelte Bild. Keine Tools, Befehle, Dateien oder weiteren Agenten verwenden.",
           allowProviderModelFallback: false });
         const threadId = thread?.thread?.id;
         if (typeof threadId !== "string") throw new RecipeError(502, "Codex konnte die Erkennung nicht starten.");
+        await verify(true);
         const result = await runtime.request("turn/start", { threadId, model, approvalPolicy: "never", permissions: "recipe_photo", environments: [],
           input: [{ type: "text", text: "Übertrage dieses Rezeptfoto in das vorgegebene JSON-Format." }, { type: "image", url: "data:image/webp;base64," + image.toString("base64") }], outputSchema: photoExtractionSchema });
         const completed = await runtime.wait("turn/completed", e => e?.threadId === threadId && e?.turn?.id === result?.turn?.id, 65000);
@@ -152,7 +161,7 @@ export function codexDeviceService(db: PrismaClient, config: Config, factory: Co
         const text = messages.at(-1)?.text;
         if (!text || text.length > 128 * 1024) throw new RecipeError(502, "Codex hat keine gültige Rezeptvorlage geliefert.");
         return text as string;
-      });
+      }, shared);
     },
     async logout(authFile: string) {
       const runtime = await factory(authFile);

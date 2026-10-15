@@ -9,6 +9,7 @@ import { connectionSecrets } from "../lib/connection-secrets";
 import { chatgptProvider, ChatgptProviderError, type ChatgptFetch, type ChatgptTokens } from "../integrations/chatgpt-provider";
 import type { ChatgptStatus } from "../../shared/chatgpt";
 import type { CodexDeviceService } from "./codex-device";
+import { setSharedChatgpt, sharedChatgptSetting, sharedChatgptConnected } from "./shared-chatgpt";
 
 export function chatgptService(db: PrismaClient, config: Config, customFetch?: ChatgptFetch, devices?: CodexDeviceService) {
   const provider = chatgptProvider(customFetch), secrets = connectionSecrets(config, "chatgpt");
@@ -36,10 +37,13 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
     return record;
   }
   async function selected(userId: string) {
-    const account = await db.chatgptAccount.findFirst({ where: { userId, active: true, encryptedTokens: { not: null } } });
+    const setting = await sharedChatgptSetting(db);
+    const shared = setting?.enabled === true;
+    if (shared && !sharedChatgptConnected(setting)) throw new RecipeError(409, "Die zentrale ChatGPT-Verbindung ist nicht verfügbar. Bitte den Administrator informieren.");
+    const account = shared ? setting!.account : await db.chatgptAccount.findFirst({ where: { userId, active: true, encryptedTokens: { not: null } } });
     if (!account) throw new RecipeError(409, "Bitte zuerst dein ChatGPT-Konto verbinden.");
     if (account.blocked) throw new RecipeError(409, "Die ChatGPT-Nutzung ist angehalten. Bitte Nutzungslimit und Kontoberechtigung prüfen und anschließend bewusst fortsetzen oder erneut verbinden.");
-    return account;
+    return { account, shared };
   }
   async function access(userId: string, accountId: string) {
     // Rotating refresh tokens must be serialized across all app processes.
@@ -62,10 +66,22 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
   }
   return {
     async status(userId: string): Promise<ChatgptStatus> {
-      const accounts = await db.chatgptAccount.findMany({ where: { userId }, orderBy: { id: "asc" } });
-      return { enabled: config.chatgpt.enabled, secureOrigin: config.origin.startsWith("https://"), creditsDisabledConfirmed: config.chatgpt.creditsDisabledConfirmed,
+      const [accounts, actor, setting] = await Promise.all([
+        db.chatgptAccount.findMany({ where: { userId }, orderBy: { id: "asc" } }),
+        db.user.findUniqueOrThrow({ where: { id: userId }, select: { isAdmin: true } }),
+        sharedChatgptSetting(db),
+      ]);
+      return {
+        canManageShared: actor.isAdmin,
+        shared: { enabled: setting?.enabled ?? false, connected: sharedChatgptConnected(setting), blocked: setting?.account?.blocked ?? false,
+          creditsConfirmed: setting?.account?.creditsConfirmed ?? false, provider: setting?.account?.provider === "device" ? "device" : null,
+          ownAccountId: actor.isAdmin && setting?.account?.userId === userId ? setting.account.id : null }, enabled: config.chatgpt.enabled, secureOrigin: config.origin.startsWith("https://"), creditsDisabledConfirmed: config.chatgpt.creditsDisabledConfirmed,
         accounts: accounts.map((a, i) => ({ id: a.id, email: a.email, label: `ChatGPT ${i + 1}`, active: a.active,
           connected: a.encryptedTokens !== null, blocked: a.blocked, creditsConfirmed: a.creditsConfirmed, provider: a.provider === "device" ? "device" : "oauth" })) };
+    },
+    async setShared(userId: string, accountId: string | null) {
+      if (accountId) enabled();
+      await setSharedChatgpt(db, userId, accountId);
     },
     async start(userId: string, accountId: string | null) {
       enabled();
@@ -166,10 +182,10 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
     },
     async models(userId: string) {
       enabled();
-      const account = await selected(userId);
+      const { account, shared } = await selected(userId);
       if (account.provider === "device") {
         if (!devices) throw new RecipeError(503, "Codex-Verbindung nicht verfügbar.");
-        return devices.models(userId, account.id);
+        return devices.models(account.userId, account.id, shared);
       }
       try { return await provider.models(await access(userId, account.id)); }
       catch (error) { return blockedOnFailure(account.id, error); }
@@ -178,11 +194,11 @@ export function chatgptService(db: PrismaClient, config: Config, customFetch?: C
       enabled();
       if (!config.chatgpt.creditsDisabledConfirmed)
         throw new RecipeError(403, "Die Erkennung bleibt gesperrt, bis der Betreiber die Nutzung ohne Zusatzguthaben und automatische Aufladung geprüft und bestätigt hat.");
-      const account = await selected(userId), lease = randomBytes(32).toString("hex");
+      const { account, shared } = await selected(userId), lease = randomBytes(32).toString("hex");
       if (!account.creditsConfirmed) throw new RecipeError(403, "Bitte zuerst für dieses ChatGPT-Konto die Nutzung ohne Zusatzguthaben bestätigen.");
       if (account.provider === "device") {
         if (!devices) throw new RecipeError(503, "Codex-Verbindung nicht verfügbar.");
-        return devices.recognize(userId, account.id, model, image, instructions);
+        return devices.recognize(account.userId, account.id, model, image, instructions, shared);
       }
       const acquired = await db.chatgptAccount.updateMany({ where: { id: account.id, userId, active: true, blocked: false, encryptedTokens: { not: null },
         OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }] }, data: { leaseToken: lease, leaseUntil: new Date(Date.now() + 120000) } });

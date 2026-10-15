@@ -13,6 +13,15 @@ export interface ChatgptStatus {
   secureOrigin: boolean;
   creditsDisabledConfirmed: boolean;
   accounts: ChatgptAccountSummary[];
+  canManageShared?: boolean;
+  shared?: {
+    enabled: boolean;
+    connected: boolean;
+    blocked: boolean;
+    creditsConfirmed: boolean;
+    provider: "device" | null;
+    ownAccountId: string | null;
+  };
 }
 export interface ChatgptModel { slug: string; displayName: string }
 export interface ChatgptDeviceStatus {
