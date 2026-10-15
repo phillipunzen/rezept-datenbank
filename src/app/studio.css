@@ -1513,6 +1513,33 @@ a,
   gap: 12px;
   margin-top: 18px;
 }
+.button.authentik-signin {
+  background: #fd4b2d;
+  border-color: #fd4b2d;
+  color: #181818;
+  min-height: 46px;
+  gap: 10px;
+}
+.button.authentik-signin:hover:not(:disabled) {
+  background: #ed4024;
+  border-color: #ed4024;
+}
+.button.authentik-signin:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
+.authentik-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: #fff;
+}
+.authentik-mark img {
+  display: block;
+}
 .profile-avatar {
   object-fit: cover;
   border-radius: 50%;

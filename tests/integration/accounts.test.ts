@@ -326,10 +326,25 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       await db.oidcIdentity.count({ where: { subject: "subject-1" } }),
       1,
     );
+    const sessionCookie = ([] as string[])
+      .concat(created.callback.headers["set-cookie"] ?? [])
+      .find((cookie) => cookie.startsWith("session="));
+    assert.ok(sessionCookie, "OIDC signup must issue an app session");
+    const signedIn = await app.inject({
+      url: "/api/v1/auth/me",
+      headers: { cookie: sessionCookie.split(";")[0] },
+    });
+    assert.equal(signedIn.statusCode, 200);
+    assert.equal(signedIn.json().user.email, "new-sso@accounts.test");
+    assert.equal(signedIn.json().user.isAdmin, false);
+    const membership = await db.householdMember.findFirstOrThrow({
+      where: { userId: signedIn.json().user.id },
+    });
+    assert.equal(membership.role, "OWNER");
     const collision = await flow(first.user.email, "subject-collision");
     assert.equal(
       collision.callback.headers.location,
-      config.origin + "/#authError=oidc",
+      config.origin + "/#authError=account_exists",
     );
     assert.equal(
       await db.oidcIdentity.count({ where: { subject: "subject-collision" } }),
@@ -341,7 +356,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
     const linked = await flow(first.user.email, "subject-linked", true, false);
     assert.equal(
       linked.callback.headers.location,
-      config.origin + "/#oidc=success",
+      config.origin + "/#oidc=linked",
     );
     assert.equal(
       (
@@ -355,7 +370,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
       url: `/api/v1/auth/oidc/callback?state=${linked.state}&code=${linked.code}`,
       headers: { cookie: linked.cookie },
     });
-    assert.equal(replay.headers.location, config.origin + "/#authError=oidc");
+    assert.equal(replay.headers.location, config.origin + "/#authError=session");
     const returning = await flow(first.user.email, "subject-linked", false, false);
     assert.equal(
       returning.callback.headers.location,
@@ -364,7 +379,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
     const closedRegistration = await flow("closed@accounts.test", "subject-closed");
     assert.equal(
       closedRegistration.callback.headers.location,
-      config.origin + "/#authError=oidc",
+      config.origin + "/#authError=registration_disabled",
     );
     assert.equal(
       await db.oidcIdentity.count({ where: { subject: "subject-closed" } }),
@@ -379,7 +394,7 @@ test("SMTP resets are single-use, revoke sessions; admin guards, avatar, audit a
     );
     assert.equal(
       unverified.callback.headers.location,
-      config.origin + "/#authError=oidc",
+      config.origin + "/#authError=email_unverified",
     );
     const record = await db.auditEvent.findFirstOrThrow({
       where: { actorId: first.user.id },

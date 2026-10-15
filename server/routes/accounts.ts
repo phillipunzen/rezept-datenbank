@@ -40,6 +40,7 @@ export async function accountRoutes(
   app.get("/auth/options", { schema: { tags: ["Auth"] } }, async () => ({
     passwordResetEnabled: !!config.smtp,
     oidcEnabled: !!config.oidc,
+    oidcRegistrationEnabled: config.oidc?.registrationEnabled ?? false,
     oidcLabel: config.oidc?.label ?? "",
   }));
   app.post<{ Body: { email: string } }>(

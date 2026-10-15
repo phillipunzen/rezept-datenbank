@@ -33,6 +33,7 @@ import { MealPlanner } from "./planning/meal-planner";
 import { CookingHistory } from "./planning/cooking-history";
 import { planningMessages } from "./planning/messages";
 import { messages, type Locale } from "./translations";
+import { oidcFailureMessage } from "../../shared/oidc";
 type View =
   | "dashboard"
   | "settings"
@@ -59,6 +60,8 @@ export function Application() {
   const [invitationToken, setInvitationToken] = useState<string | null>(null);
   const appearance = useAppearance();
   const [error, setError] = useState("");
+  const [authFailure, setAuthFailure] = useState<string | null>(null);
+  const [accountLinked, setAccountLinked] = useState(false);
   const [loading, setLoading] = useState(true);
   const t = messages[locale];
   const load = useCallback(async () => {
@@ -90,11 +93,12 @@ export function Application() {
     if (token) setInvitationToken(token.slice(0, 256));
     if (new URLSearchParams(location.hash.slice(1)).has("reset"))
       setPasswordReset(true);
-    if (new URLSearchParams(location.hash.slice(1)).has("authError")) {
-      setError(
-        "SSO-Anmeldung fehlgeschlagen. Bestehendes Konto zunächst lokal anmelden und in den Einstellungen verknüpfen.",
-      );
-      history.replaceState(null, "", location.pathname);
+    const callback = new URLSearchParams(location.hash.slice(1));
+    if (callback.has("authError") || callback.has("oidc")) {
+      if (callback.has("authError"))
+        setAuthFailure(callback.get("authError") || "provider");
+      setAccountLinked(callback.get("oidc") === "linked");
+      history.replaceState(null, "", location.pathname + location.search);
     }
     void load();
     if ("serviceWorker" in navigator && window.isSecureContext)
@@ -158,6 +162,8 @@ export function Application() {
     window.scrollTo({ top: 0 });
   }
   function onUser(next: User) {
+    setAuthFailure(null);
+    setAccountLinked(false);
     if (
       (!user || user.id !== next.id) &&
       typeof BroadcastChannel !== "undefined"
@@ -251,7 +257,9 @@ export function Application() {
     return (
       <AuthForm
         system={system}
-        externalError={error}
+        externalError={
+          error || (authFailure ? oidcFailureMessage(authFailure, locale) : "")
+        }
         locale={locale}
         setLocale={setLocale}
         onUser={onUser}
@@ -389,6 +397,18 @@ export function Application() {
           </div>
         </header>
         <main className="content">
+          {authFailure && (
+            <div className="error-box" role="alert">
+              {oidcFailureMessage(authFailure, locale)}
+            </div>
+          )}
+          {accountLinked && (
+            <p className="success-box" role="status">
+              {locale === "de"
+                ? "Dein Anmeldekonto wurde verknüpft. Du kannst dich jetzt darüber anmelden."
+                : "Your sign-in account is linked. You can now use it to sign in."}
+            </p>
+          )}
           {error && (
             <div className="error-box" role="alert">
               {error}

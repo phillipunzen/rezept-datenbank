@@ -20,6 +20,7 @@ export function AccountOptions({
     [feedback, setFeedback] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const authentik = /authentik/i.test(options?.oidcLabel ?? "");
   useEffect(() => {
     let active = true;
     api<Options>("/auth/options")
@@ -46,8 +47,9 @@ export function AccountOptions({
     <div className="account-options">
       {options?.oidcEnabled && (
         <button
-          className="button secondary"
+          className={`button ${authentik ? "authentik-signin" : "secondary"}`}
           disabled={busy}
+          aria-busy={busy}
           onClick={() =>
             void run(async () => {
               const result = await api<{ url: string }>("/auth/oidc/start", {
@@ -57,6 +59,11 @@ export function AccountOptions({
             })
           }
         >
+          {authentik && (
+            <span className="authentik-mark" aria-hidden="true">
+              <img src="/brands/authentik.svg" alt="" width={24} height={24} />
+            </span>
+          )}
           {link
             ? de
               ? "Anmeldekonto verknüpfen"

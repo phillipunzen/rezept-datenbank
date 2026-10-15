@@ -62,6 +62,12 @@ Verknüpfung und spätere Anmeldung funktionieren auch mit `OIDC_REGISTRATION_EN
 
 ## Optional: neue Konten über Authentik
 
+Für die erste Anmeldung **mit einem neuen Rezept-Konto** in `.env` setzen und anschließend `docker compose up -d app` ausführen:
+
+```dotenv
+OIDC_REGISTRATION_ENABLED=true
+```
+
 `OIDC_REGISTRATION_ENABLED=true` erlaubt neuen OIDC-Identitäten ein eigenes App-Konto mit eigenem Haushalt; sie erhalten keine globalen Administratorrechte. Diese Einstellung ist unabhängig von der normalen Passwortregistrierung. Die erste App-Einrichtung erfolgt weiterhin mit dem Einrichtungscode.
 
 Neue Konten benötigen `email` und **`email_verified=true`** im signierten ID-Token. Seit Authentik 2025.10 liefert die Standard-E-Mail-Zuordnung zunächst `false`. Für neue Konten einen tatsächlichen E-Mail-Verifizierungsablauf und die dazu passende Scope-Zuordnung in Authentik verwenden. [Authentik: E-Mail-Adressen bestätigen](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/verify-email-address/). Bestehende, ausdrücklich verknüpfte Konten benötigen für die spätere Anmeldung keine erneute E-Mail-Verifikation.
@@ -74,3 +80,5 @@ Neue Konten benötigen `email` und **`email_verified=true`** im signierten ID-To
 - **Discovery nicht erreichbar:** Aus dem App-Netz `https://auth.example.de/application/o/rezeptdatenbank/.well-known/openid-configuration` prüfen. Ein Proxy darf diese Serveranfragen nicht mit einer interaktiven Browserprüfung blockieren.
 
 Die App prüft Signatur, Issuer, Audience, State, Nonce und PKCE. Authentik-Gruppen werden nicht automatisch zu App-Administratoren oder Haushaltsrollen. Abmelden beendet die lokale App-Sitzung; ein globaler Authentik-Logout bzw. Back-channel-Logout ist derzeit nicht implementiert.
+
+Der Anmeldebutton verwendet bei einem `OIDC_LABEL` mit „Authentik“ das lokal eingebundene Authentik-Logo und die Markenfarbe; andere Provider behalten ihre neutrale Darstellung. Callback-Fehler bleiben nach dem Laden sichtbar und nennen eine feste Fehlerkategorie (z. B. deaktivierte Kontoerstellung oder fehlende E-Mail-Verifikation). Im Serverprotokoll steht ausschließlich `oidcFailure`; Providerantworten, Codes, Tokens und E-Mail-Adressen werden dabei nicht protokolliert.

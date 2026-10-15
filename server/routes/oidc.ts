@@ -6,6 +6,12 @@ import type { Config } from "../lib/config";
 import { authService } from "../services/auth";
 import { hashPassword, hashToken } from "../lib/password";
 import { RecipeError } from "../lib/errors";
+import type { OidcFailure } from "../../shared/oidc";
+class OidcCallbackError extends Error {
+  constructor(public reason: OidcFailure) {
+    super(reason);
+  }
+}
 export async function oidcRoutes(
   app: FastifyInstance,
   db: PrismaClient,
@@ -103,7 +109,7 @@ export async function oidcRoutes(
         const state = req.query.state,
           browser = req.cookies.oidc_browser;
         if (!state || state.length > 256 || !browser)
-          throw new RecipeError(400, "Anmeldung ungültig.");
+          throw new OidcCallbackError("session");
         const attempt = await db.oidcAttempt.findUnique({
           where: { stateHash: hashToken(state) },
         });
@@ -112,7 +118,7 @@ export async function oidcRoutes(
           attempt.browserHash !== hashToken(browser) ||
           attempt.expiresAt <= new Date()
         )
-          throw new RecipeError(400, "Anmeldung abgelaufen.");
+          throw new OidcCallbackError("session");
         if (
           !(
             await db.oidcAttempt.deleteMany({
@@ -123,7 +129,7 @@ export async function oidcRoutes(
             })
           ).count
         )
-          throw new RecipeError(400, "Anmeldung bereits verwendet.");
+          throw new OidcCallbackError("session");
         const tokens = await oidc.authorizationCodeGrant(
           await provider(),
           new URL(req.url, config.origin),
@@ -140,7 +146,7 @@ export async function oidcRoutes(
           claims.sub.length > 255 ||
           claims.iss !== settings.issuer
         )
-          throw new RecipeError(400, "Identität ungültig.");
+          throw new OidcCallbackError("provider");
         let target = await db.oidcIdentity.findUnique({
           where: {
             issuer_subject: { issuer: settings.issuer, subject: claims.sub },
@@ -150,9 +156,9 @@ export async function oidcRoutes(
         if (attempt.userId) {
           const actor = await auth.currentUser(req);
           if (!actor || actor.id !== attempt.userId)
-            throw new RecipeError(403, "Bitte zum Verknüpfen erneut anmelden.");
+            throw new OidcCallbackError("link_session");
           if (target && target.userId !== actor.id)
-            throw new RecipeError(409, "Identität bereits verbunden.");
+            throw new OidcCallbackError("identity_in_use");
           if (!target)
             target = await db.oidcIdentity.create({
               data: {
@@ -164,23 +170,17 @@ export async function oidcRoutes(
             });
         } else if (!target) {
           if (!settings.registrationEnabled)
-            throw new RecipeError(403, "OIDC-Registrierung deaktiviert.");
+            throw new OidcCallbackError("registration_disabled");
           if (
             claims.email_verified !== true ||
             typeof claims.email !== "string" ||
             !/^\S+@\S+\.\S+$/.test(claims.email) ||
             claims.email.length > 254
           )
-            throw new RecipeError(
-              400,
-              "Bestätigte E-Mail-Adresse erforderlich.",
-            );
+            throw new OidcCallbackError("email_unverified");
           const email = claims.email.toLowerCase().trim();
           if (await db.user.findUnique({ where: { email } }))
-            throw new RecipeError(
-              409,
-              "Bestehendes Konto zuerst anmelden und in Einstellungen verknüpfen.",
-            );
+            throw new OidcCallbackError("account_exists");
           const passwordHash = await hashPassword(
             randomBytes(32).toString("hex"),
           );
@@ -209,7 +209,7 @@ export async function oidcRoutes(
           });
         }
         if (target.user.accountStatus?.disabled)
-          throw new RecipeError(403, "Konto gesperrt.");
+          throw new OidcCallbackError("account_disabled");
         await auth.issueSession(target.userId, reply);
         await db.auditEvent.create({
           data: {
@@ -218,10 +218,15 @@ export async function oidcRoutes(
             status: 200,
           },
         });
-        return reply.redirect(config.origin + "/#oidc=success");
-      } catch {
+        return reply.redirect(
+          config.origin + (attempt.userId ? "/#oidc=linked" : "/#oidc=success"),
+        );
+      } catch (error) {
         // Provider responses, codes and tokens are intentionally absent from logs/UI.
-        return reply.redirect(config.origin + "/#authError=oidc");
+        const reason =
+          error instanceof OidcCallbackError ? error.reason : "provider";
+        req.log.warn({ oidcFailure: reason }, "OIDC callback rejected");
+        return reply.redirect(config.origin + "/#authError=" + reason);
       }
     },
   );
