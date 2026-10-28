@@ -1,5 +1,11 @@
 // Englische Übersetzungen der Oberfläche (Schlüssel = deutscher Text).
 export default {
+  'Konten, die das Abo nutzen': 'Accounts using the subscription',
+  'Ich bestätige: Alle ausgewählten Konten gehören mir selbst. (Ein Claude-Abo darf nur von der Person genutzt werden, der es gehört.)': 'I confirm: all selected accounts are my own. (A Claude subscription may only be used by the person it belongs to.)',
+  'Konten speichern': 'Save accounts',
+  'Genutzt von: {n}': 'Used by: {n}',
+  'Konten gespeichert': 'Accounts saved',
+  'Die App ruft dafür das offizielle Claude-Code-Programm im Container auf und nutzt dein Pro- oder Max-Abo statt eines API-Schlüssels. Das ist nur für dich gedacht: Der Modus steht ausschließlich den Konten zur Verfügung, die dir gehören und unten ausgewählt sind. Andere Benutzer nutzen – falls eingerichtet – den API-Schlüssel unten.': 'The app runs the official Claude Code program inside the container and uses your Pro or Max subscription instead of an API key. This is for you only: the mode is available exclusively to the accounts below that belong to you. Other users use the API key below, if configured.',
   'Abo gehört zu Konto': 'Subscription belongs to account',
   'Inhaber geändert': 'Owner changed',
   'Nur dieses Konto nutzt das Abo. Wähle das Konto, mit dem du die App selbst verwendest.': 'Only this account uses the subscription. Pick the account you use the app with yourself.',

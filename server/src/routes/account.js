@@ -7,7 +7,7 @@ import { requireAuth, requireAdmin, publicUser, setSession } from '../auth.js';
 import { getSettings, setSetting } from '../settings.js';
 import { ah, badRequest, encrypt, decrypt, notFound, toInt } from '../util.js';
 import { saveAvatar } from '../services/images.js';
-import { aiStatus, testConnection, testClaudeCode, AI_MODELS, CC_MODELS } from '../services/ai.js';
+import { aiStatus, testConnection, testClaudeCode, ccOwnerIds, AI_MODELS, CC_MODELS } from '../services/ai.js';
 import { haTest } from '../services/homeassistant.js';
 import { startLogin, finishLogin, cancelLogin } from '../services/claudeLogin.js';
 import { config } from '../config.js';
@@ -113,7 +113,8 @@ r.delete('/admin/users/:id', requireAdmin, ah(async (req, res) => {
 
 r.get('/admin/settings', requireAdmin, ah(async (req, res) => {
   const s = await getSettings();
-  const ccOwner = s.ai.cc_owner_id ? await knex('users').where({ id: s.ai.cc_owner_id }).select('id', 'display_name').first() : null;
+  const ownerIds = ccOwnerIds(s.ai);
+  const ccOwners = ownerIds.length ? await knex('users').whereIn('id', ownerIds).select('id', 'display_name') : [];
   res.json({
     registration_local: !!s.registration_local,
     registration_oidc: !!s.registration_oidc,
@@ -125,7 +126,7 @@ r.get('/admin/settings', requireAdmin, ah(async (req, res) => {
       ...s.ai, api_key_enc: undefined, cc_token_enc: undefined,
       has_key: !!s.ai.api_key_enc, key_hint: s.ai.api_key_enc ? `…${(decrypt(s.ai.api_key_enc) || '').slice(-4)}` : null, models: AI_MODELS,
       cc_has_token: !!s.ai.cc_token_enc, cc_models: CC_MODELS,
-      cc_owner: ccOwner ? { id: ccOwner.id, name: ccOwner.display_name, is_me: ccOwner.id === req.user.id } : null,
+      cc_owners: ccOwners.map((o) => ({ id: o.id, name: o.display_name, is_me: o.id === req.user.id })),
     },
     ai_status: await aiStatus(req.user),
     ha: { url: s.ha.url, poll_seconds: s.ha.poll_seconds, has_token: !!s.ha.token_enc },
@@ -156,21 +157,27 @@ r.put('/admin/settings', requireAdmin, ah(async (req, res) => {
       if (cc.token) {
         const tkn = String(cc.token).trim();
         if (!/^sk-ant-oat\d*-[\w-]{20,}$/.test(tkn)) throw badRequest('Das sieht nicht wie ein Token aus „claude setup-token“ aus (beginnt mit sk-ant-oat…).');
-        // Das Abo gehört der Person, die das Token hinterlegt – nur sie kann den Modus nutzen.
+        // Ohne bisherige Zuordnung gehört das Abo dem Konto, das das Token hinterlegt.
         ai.cc_token_enc = encrypt(tkn);
-        ai.cc_owner_id = req.user.id;
+        ai.cc_owner_ids = ccOwnerIds(ai).length ? ccOwnerIds(ai) : [req.user.id];
+        delete ai.cc_owner_id;
         ai.cc_enabled = true;
       }
       if ('enabled' in cc) {
         ai.cc_enabled = !!cc.enabled && !!ai.cc_token_enc;
       }
-      if ('owner_id' in cc && ai.cc_token_enc) {
-        // Admin legt fest, welchem Konto das Abo gehört (z. B. eigenes Konto statt Einrichtungs-Admin).
-        const u = await knex('users').where({ id: toInt(cc.owner_id) }).first();
-        if (!u || u.disabled) throw badRequest('Dieses Konto gibt es nicht oder es ist deaktiviert.');
-        ai.cc_owner_id = u.id;
+      if (Array.isArray(cc.owner_ids) && ai.cc_token_enc) {
+        // Admin legt fest, welche Konten das Abo nutzen. Anthropic erlaubt Abo-Nutzung nur für die
+        // Abo-Inhaberin bzw. den Abo-Inhaber selbst – bei mehreren Konten muss das bestätigt werden.
+        const ids = [...new Set(cc.owner_ids.map((x) => toInt(x)).filter(Boolean))];
+        if (!ids.length) throw badRequest('Bitte mindestens ein Konto auswählen.');
+        if (ids.length > 1 && cc.confirm_own !== true) throw badRequest('Bitte bestätige, dass alle ausgewählten Konten dir selbst gehören.');
+        const found = await knex('users').whereIn('id', ids).where({ disabled: false }).select('id');
+        if (found.length !== ids.length) throw badRequest('Mindestens ein Konto gibt es nicht oder es ist deaktiviert.');
+        ai.cc_owner_ids = ids;
+        delete ai.cc_owner_id;
       }
-      if (cc.remove) { ai.cc_token_enc = null; ai.cc_owner_id = null; ai.cc_enabled = false; }
+      if (cc.remove) { ai.cc_token_enc = null; ai.cc_owner_ids = []; delete ai.cc_owner_id; ai.cc_enabled = false; }
     }
     await setSetting('ai', ai);
   }
@@ -197,8 +204,11 @@ r.post('/admin/ai/cc-login/start', requireAdmin, ah(async (req, res) => {
 r.post('/admin/ai/cc-login/finish', requireAdmin, ah(async (req, res) => {
   const tkn = await finishLogin(req.user.id, String(req.body.id || ''), req.body.code);
   const s = await getSettings();
-  // Das Abo gehört der Person, die sich angemeldet hat – nur sie kann den Modus nutzen.
-  await setSetting('ai', { ...s.ai, cc_token_enc: encrypt(tkn), cc_owner_id: req.user.id, cc_enabled: true });
+  // Ohne bisherige Zuordnung gehört das Abo dem Konto, das sich angemeldet hat.
+  const owners = ccOwnerIds(s.ai);
+  const next = { ...s.ai, cc_token_enc: encrypt(tkn), cc_owner_ids: owners.length ? owners : [req.user.id], cc_enabled: true };
+  delete next.cc_owner_id;
+  await setSetting('ai', next);
   res.json({ ok: true });
 }));
 

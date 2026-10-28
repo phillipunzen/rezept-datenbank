@@ -39,9 +39,15 @@ async function usageCounts(userId) {
   return { month: Number(month), day: Number(day), tokens_in: Number(tokens_in || 0), tokens_out: Number(tokens_out || 0) };
 }
 
+/** Konten, denen das Abo zugeordnet ist (alle gehören der Abo-Inhaberin bzw. dem Abo-Inhaber selbst). */
+export function ccOwnerIds(ai) {
+  if (Array.isArray(ai.cc_owner_ids) && ai.cc_owner_ids.length) return ai.cc_owner_ids.map(Number);
+  return ai.cc_owner_id ? [Number(ai.cc_owner_id)] : []; // ältere Einstellung mit nur einem Konto
+}
+
 /** Welcher Zugang gilt für diesen Benutzer? 'claude_code' | 'api' | null */
 function providerFor(ai, user) {
-  if (ai.cc_enabled && ai.cc_token_enc && user && ai.cc_owner_id === user.id) return 'claude_code';
+  if (ai.cc_enabled && ai.cc_token_enc && user && ccOwnerIds(ai).includes(user.id)) return 'claude_code';
   if (ai.api_key_enc && ai.enabled && (ai.shared || user?.role === 'admin')) return 'api';
   return null;
 }

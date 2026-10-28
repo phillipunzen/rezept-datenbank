@@ -58,6 +58,47 @@ function UsersTab() {
   );
 }
 
+/** Auswahl der eigenen Konten, die das Claude-Abo nutzen dürfen. */
+function CcOwners({ owners, users, onSave }) {
+  const t = useT();
+  const initial = owners.map((o) => o.id).sort().join(',');
+  const [sel, setSel] = useState(() => new Set(owners.map((o) => o.id)));
+  const [confirmed, setConfirmed] = useState(owners.length > 1);
+  useEffect(() => { setSel(new Set(owners.map((o) => o.id))); setConfirmed(owners.length > 1); }, [initial]); // eslint-disable-line react-hooks/exhaustive-deps
+  const changed = [...sel].sort().join(',') !== initial;
+  const needsConfirm = sel.size > 1;
+  return (
+    <div className="field" style={{ marginBottom: 0 }}>
+      <label>{t('Konten, die das Abo nutzen')}</label>
+      <div className="select-list" style={{ maxHeight: 240 }}>
+        {users.filter((u) => !u.disabled).map((u) => (
+          <label key={u.id}>
+            <input type="checkbox" checked={sel.has(u.id)} onChange={(e) => {
+              const n = new Set(sel);
+              if (e.target.checked) n.add(u.id); else n.delete(u.id);
+              setSel(n);
+              setConfirmed(false); // jede geänderte Auswahl muss neu bestätigt werden
+            }} />
+            <span style={{ flex: 1 }}>{u.display_name}<span className="faint small">{u.email ? ` · ${u.email}` : ''}{u.oidc ? ' · Authentik' : ''}</span></span>
+          </label>
+        ))}
+      </div>
+      {needsConfirm && (
+        <label className="check small" style={{ marginTop: 8 }}>
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+          {t('Ich bestätige: Alle ausgewählten Konten gehören mir selbst. (Ein Claude-Abo darf nur von der Person genutzt werden, der es gehört.)')}
+        </label>
+      )}
+      {changed && (
+        <div className="btn-row mt">
+          <button className="btn primary small" disabled={!sel.size || (needsConfirm && !confirmed)} onClick={() => onSave([...sel], needsConfirm && confirmed)}>{t('Konten speichern')}</button>
+          <button className="btn ghost small" onClick={() => setSel(new Set(owners.map((o) => o.id)))}>{t('Verwerfen')}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** „Mit Claude verbinden“: Anmeldelink anzeigen, Code entgegennehmen, Token speichern lassen. */
 function ClaudeConnect({ reconnect, onDone }) {
   const t = useT();
@@ -151,7 +192,7 @@ function SettingsTabs({ tab }) {
 
   if (tab === 'ai') {
     const st = s.ai_status;
-    const owner = ai.cc_owner;
+    const owners = ai.cc_owners || [];
     const testCc = async () => {
       setCcTesting(true);
       try {
@@ -164,22 +205,15 @@ function SettingsTabs({ tab }) {
       <div className="stack lg">
         <div className="card pad">
           <h3 style={{ marginBottom: 6 }}><Terminal size={18} style={{ verticalAlign: -3 }} /> {t('Claude Code mit meinem Abo')}</h3>
-          <p className="small muted" style={{ marginBottom: 14 }}>{t('Die App ruft dafür das offizielle Claude-Code-Programm im Container auf und nutzt dein Pro- oder Max-Abo statt eines API-Schlüssels. Das ist nur für dich gedacht: Der Modus steht ausschließlich dem Konto zur Verfügung, dem das Abo zugeordnet ist. Andere Benutzer nutzen – falls eingerichtet – den API-Schlüssel unten.')}</p>
+          <p className="small muted" style={{ marginBottom: 14 }}>{t('Die App ruft dafür das offizielle Claude-Code-Programm im Container auf und nutzt dein Pro- oder Max-Abo statt eines API-Schlüssels. Das ist nur für dich gedacht: Der Modus steht ausschließlich den Konten zur Verfügung, die dir gehören und unten ausgewählt sind. Andere Benutzer nutzen – falls eingerichtet – den API-Schlüssel unten.')}</p>
           {ai.cc_has_token && (
             <div className="stack" style={{ marginBottom: 14 }}>
               <div className="row wrap">
                 <span className={`badge ${ai.cc_enabled ? 'green' : ''}`}>{ai.cc_enabled ? t('Aktiv') : t('Ausgeschaltet')}</span>
-                {owner && <span className="small">{t('Abo von {n}', { n: owner.name })}{owner.is_me ? ` (${t('du')})` : ''}</span>}
+                {owners.length > 0 && <span className="small">{t('Genutzt von: {n}', { n: owners.map((o) => o.name + (o.is_me ? ` (${t('du')})` : '')).join(', ') })}</span>}
               </div>
+              <CcOwners owners={owners} users={users.data?.items || []} onSave={(ids, confirm) => save({ ai: { cc: { owner_ids: ids, confirm_own: confirm } } }, t('Konten gespeichert'))} />
               <div className="grid-2">
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label>{t('Abo gehört zu Konto')}</label>
-                  <select className="input" value={owner?.id || ''} onChange={(e) => save({ ai: { cc: { owner_id: Number(e.target.value) } } }, t('Inhaber geändert'))}>
-                    {!owner && <option value="">–</option>}
-                    {(users.data?.items || []).filter((u) => !u.disabled).map((u) => <option key={u.id} value={u.id}>{u.display_name}{u.email ? ` (${u.email})` : ''}</option>)}
-                  </select>
-                  <span className="hint">{t('Nur dieses Konto nutzt das Abo. Wähle das Konto, mit dem du die App selbst verwendest.')}</span>
-                </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label>{t('Modell')}</label>
                   <select className="input" value={ai.cc_model} onChange={(e) => save({ ai: { cc: { model: e.target.value } } })}>
