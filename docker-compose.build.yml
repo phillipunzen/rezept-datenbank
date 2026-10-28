@@ -1,6 +1,6 @@
-# Optional: lokales Image bauen, weiterhin ausschließlich mit externer MariaDB.
-# docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# Optional: Image lokal aus dem Quellcode bauen statt aus der Registry zu laden.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 services:
   app:
     build: .
-    image: rezeptdatenbank:0.8.0
+    image: rezeptbuch:local

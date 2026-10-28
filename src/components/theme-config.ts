@@ -1,3 +1,0 @@
-export const appearanceStorageKey = "recipe-appearance";
-// Apply before first paint; only local appearance preferences are read.
-export const appearanceBootstrap = `try{var p=localStorage.getItem('${appearanceStorageKey}');var d=p==='dark'||(p!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light'}catch{var d=matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.style.colorScheme=d?'dark':'light'}`;

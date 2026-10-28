@@ -4,33 +4,7 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-    paths:
-      - '.github/workflows/docker-image.yml'
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'package*.json'
-      - 'next.config.ts'
-      - 'tsconfig.json'
-      - 'prisma/**'
-      - 'public/**'
-      - 'scripts/**'
-      - 'server/**'
-      - 'shared/**'
-      - 'src/**'
   pull_request:
-    paths:
-      - '.github/workflows/docker-image.yml'
-      - 'Dockerfile'
-      - '.dockerignore'
-      - 'package*.json'
-      - 'next.config.ts'
-      - 'tsconfig.json'
-      - 'prisma/**'
-      - 'public/**'
-      - 'scripts/**'
-      - 'server/**'
-      - 'shared/**'
-      - 'src/**'
   workflow_dispatch:
 
 concurrency:
@@ -71,7 +45,7 @@ jobs:
           context: .
           platforms: linux/amd64
           load: true
-          tags: rezeptdatenbank:ci
+          tags: rezeptbuch:ci
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -80,19 +54,16 @@ jobs:
         run: |
           set -euo pipefail
           cleanup() {
-            if [ "$?" -ne 0 ]; then
-              docker logs image-app || true
-            fi
+            if [ "$?" -ne 0 ]; then docker logs image-app || true; fi
             docker rm -f image-app image-mariadb >/dev/null 2>&1 || true
             docker network rm image-test >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
           docker network create image-test >/dev/null
-          # This DB is a disposable CI fixture, outside the application image.
+          # Die Datenbank ist nur eine Test-Fixture außerhalb des App-Images.
           docker run -d --name image-mariadb --network image-test \
             -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 \
-            -e MARIADB_DATABASE=image_test -e MARIADB_USER=rezeptdatenbank \
-            -e MARIADB_PASSWORD=image-test-password \
+            -e MARIADB_DATABASE=rezeptbuch -e MARIADB_USER=rezeptbuch -e MARIADB_PASSWORD=ci-password \
             --health-cmd='healthcheck.sh --connect --innodb_initialized' \
             --health-interval=2s --health-timeout=5s --health-retries=30 \
             mariadb:11.8.6@sha256:78a5047d3ba33975f183f183c2464cc7f1eab13ec8667e57cc9a5821d6da7577 >/dev/null
@@ -100,30 +71,22 @@ jobs:
             if [ "$(docker inspect --format '{{.State.Health.Status}}' image-mariadb)" = healthy ]; then break; fi
             sleep 2
           done
-          test "$(docker inspect --format '{{.State.Health.Status}}' image-mariadb)" = healthy
-          docker run -d --name image-app --network image-test \
-            -p 127.0.0.1:8080:3000 \
-            -e DATABASE_URL=mysql://rezeptdatenbank:image-test-password@image-mariadb:3306/image_test \
-            -e APP_ORIGIN=http://localhost:8080 \
-            -e INITIAL_SETUP_TOKEN=image-smoke-setup-token-at-least-32-characters \
-            -e COOKIE_SECURE=false -e COOKIDOO_ENABLED=false \
-            -e OIDC_ISSUER=https://provider.test/application/o/rezeptdatenbank/ \
-            -e OIDC_CLIENT_ID=image-test-client -e OIDC_CLIENT_SECRET=image-test-secret \
-            -e 'OIDC_LABEL=Mit Authentik anmelden' -e OIDC_REGISTRATION_ENABLED=false \
-            rezeptdatenbank:ci >/dev/null
+          docker run -d --name image-app --network image-test -p 127.0.0.1:8080:3000 \
+            -e APP_URL=http://localhost:8080 -e APP_SECRET=ci-secret-0123456789abcdef0123456789 \
+            -e DB_HOST=image-mariadb -e DB_USER=rezeptbuch -e DB_PASSWORD=ci-password -e DB_NAME=rezeptbuch \
+            -e ADMIN_EMAIL=ci@example.org -e ADMIN_PASSWORD=ci-password-123 \
+            rezeptbuch:ci >/dev/null
           ready=false
           for attempt in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8080/api/v1/health/ready >/dev/null; then ready=true; break; fi
+            if curl -fsS http://127.0.0.1:8080/api/health >/dev/null; then ready=true; break; fi
             sleep 2
           done
           test "$ready" = true
-          curl -fsS http://127.0.0.1:8080/ >/dev/null
-          # Provider discovery runs at sign-in; these checks need no external IdP.
-          docker exec image-app node -e "fetch('http://127.0.0.1:3000/api/v1/auth/options').then(async r=>{if(!r.ok)process.exit(1);const o=await r.json();if(o.oidcEnabled!==true||o.oidcLabel!=='Mit Authentik anmelden')process.exit(1)}).catch(()=>process.exit(1))"
+          curl -fsS http://127.0.0.1:8080/ | grep -q '<div id="root">'
+          curl -fsS http://127.0.0.1:8080/sw.js >/dev/null
+          curl -fsS -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/auth/login \
+            -d '{"login":"ci@example.org","password":"ci-password-123"}' | grep -q '"role":"admin"'
           docker exec image-app sh -c '! command -v mariadbd && ! command -v mysqld'
-          # Device-code runtime is bundled; this command does not sign in or run inference.
-          docker exec image-app node node_modules/@openai/codex/bin/codex.js --version
-          test "$(docker compose --env-file .env.example config --services)" = app
       - name: Sign in to GitHub Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -147,10 +110,4 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.publish.outputs.digest }}
-          TAGS: ${{ steps.meta.outputs.tags }}
-        run: |
-          echo '### Published image' >> "$GITHUB_STEP_SUMMARY"
-          echo "\`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
-          echo '```text' >> "$GITHUB_STEP_SUMMARY"
-          echo "$TAGS" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### Published image: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"

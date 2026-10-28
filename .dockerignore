@@ -1,12 +1,5 @@
-node_modules
-.next
-.git
+**/node_modules
+web/dist
 .env
-.env.*
-access.txt
-dist
-uploads
-*.tsbuildinfo
-test-results
-
-backups
+*.log
+.git
