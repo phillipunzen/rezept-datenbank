@@ -268,6 +268,15 @@ export const migrations = [
   },
 ];
 
+migrations.push({
+  id: '002_locale_auto',
+  async up(knex) {
+    // Sprache folgt standardmäßig dem Browser; bisher gespeicherte Werte stammten aus der Erkennung.
+    await knex.raw("ALTER TABLE users MODIFY locale VARCHAR(10) NOT NULL DEFAULT 'auto'");
+    await knex('users').update({ locale: 'auto' });
+  },
+});
+
 export async function runMigrations(knex) {
   const has = await knex.schema.hasTable('schema_migrations');
   if (!has) {

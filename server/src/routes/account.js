@@ -20,7 +20,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 r.put('/profile', ah(async (req, res) => {
   const upd = {};
   if (req.body.display_name) upd.display_name = String(req.body.display_name).trim().slice(0, 150);
-  if (['de', 'en'].includes(req.body.locale)) upd.locale = req.body.locale;
+  if (['de', 'en', 'auto'].includes(req.body.locale)) upd.locale = req.body.locale;
   if (['system', 'light', 'dark'].includes(req.body.theme)) upd.theme = req.body.theme;
   if ('email' in req.body) {
     const email = String(req.body.email || '').trim().toLowerCase();

@@ -10,7 +10,7 @@ export default function SettingsPage() {
   const t = useT();
   const toast = useToast();
   const [params] = useSearchParams();
-  const { user, setUser, theme, setTheme, lang, setLang, logout } = useApp();
+  const { user, setUser, theme, setTheme, langPref, setLang, logout } = useApp();
   const [profile, setProfile] = useState({ display_name: user.display_name, email: user.email || '', username: user.username || '' });
   const [pw, setPw] = useState({ current: '', password: '' });
   const avatarInput = useRef();
@@ -81,7 +81,12 @@ export default function SettingsPage() {
           <span className="hint">{t('„System“ folgt automatisch der Einstellung deines Geräts.')}</span>
         </div>
         <div className="field"><label>{t('Sprache')}</label>
-          <div className="segmented"><button className={lang === 'de' ? 'active' : ''} onClick={() => setLang('de')}>Deutsch</button><button className={lang === 'en' ? 'active' : ''} onClick={() => setLang('en')}>English</button></div>
+          <div className="segmented">
+            <button className={langPref !== 'de' && langPref !== 'en' ? 'active' : ''} onClick={() => setLang('auto')}>{t('Automatisch')}</button>
+            <button className={langPref === 'de' ? 'active' : ''} onClick={() => setLang('de')}>Deutsch</button>
+            <button className={langPref === 'en' ? 'active' : ''} onClick={() => setLang('en')}>English</button>
+          </div>
+          <span className="hint">{t('„Automatisch“ richtet sich nach den bevorzugten Sprachen deines Browsers.')}</span>
         </div>
       </div>
 
@@ -100,6 +105,7 @@ export default function SettingsPage() {
         <h3 style={{ marginBottom: 14 }}><KeyRound size={18} style={{ verticalAlign: -3 }} /> {t('Anmeldung')}</h3>
         {authCfg.data?.oidc && (
           <div className="row" style={{ marginBottom: 16 }}>
+            {/authentik/i.test(authCfg.data.oidc.name) && <img src="/brands/authentik.svg" alt="" width={22} height={22} />}
             <span style={{ flex: 1 }}>{authCfg.data.oidc.name}: {user.oidc ? <span className="badge green">{t('Verknüpft')}</span> : <span className="badge">{t('Nicht verknüpft')}</span>}</span>
             {!user.oidc && <a className="btn small" href="/api/auth/oidc/start?link=1">{t('Jetzt verknüpfen')}</a>}
           </div>

@@ -1,5 +1,8 @@
 // Englische Übersetzungen der Oberfläche (Schlüssel = deutscher Text).
 export default {
+  'Automatisch': 'Automatic',
+  '„Automatisch“ richtet sich nach den bevorzugten Sprachen deines Browsers.': '"Automatic" follows your browser\'s preferred languages.',
+  'Mit Authentik anmelden': 'Sign in with Authentik',
   'Start': 'Home',
   'Rezepte': 'Recipes',
   'Wochenplan': 'Meal plan',

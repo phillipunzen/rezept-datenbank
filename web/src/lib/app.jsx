@@ -1,6 +1,7 @@
 // Globaler App-Zustand: angemeldeter Benutzer, Gruppen, Theme, Sprache.
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api, ensureEvents, closeEvents, clearApiCache } from './api.js';
+import { resolveLang } from './i18n.js';
 
 const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -17,7 +18,7 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(undefined);
   const [groups, setGroups] = useState([]);
   const [localTheme, setLocalTheme] = useState(() => localStorage.getItem('theme') || 'system');
-  const [localLang, setLocalLang] = useState(() => localStorage.getItem('lang') || (navigator.language?.startsWith('de') ? 'de' : 'en'));
+  const [localLang, setLocalLang] = useState(() => localStorage.getItem('lang') || 'auto');
 
   const loadGroups = useCallback(async () => {
     try {
@@ -43,7 +44,9 @@ export function AppProvider({ children }) {
   }, [user]);
 
   const theme = user?.theme || localTheme;
-  const lang = user?.locale || localLang;
+  // Einstellung: 'de' | 'en' | 'auto'; angezeigt wird immer eine konkrete Sprache.
+  const langPref = user?.locale || localLang;
+  const lang = resolveLang(langPref);
   useEffect(() => {
     applyTheme(theme);
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -77,7 +80,7 @@ export function AppProvider({ children }) {
   };
 
   return (
-    <AppCtx.Provider value={{ user, setUser, refreshUser, groups, loadGroups, theme, setTheme, lang, setLang, logout }}>
+    <AppCtx.Provider value={{ user, setUser, refreshUser, groups, loadGroups, theme, setTheme, lang, langPref, setLang, logout }}>
       {children}
     </AppCtx.Provider>
   );

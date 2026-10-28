@@ -30,7 +30,7 @@ export default function Login() {
     try {
       const d = mode === 'login'
         ? await api.post('/api/auth/login', { login: form.login, password: form.password })
-        : await api.post('/api/auth/register', { email: form.email, password: form.password, display_name: form.display_name, locale: lang });
+        : await api.post('/api/auth/register', { email: form.email, password: form.password, display_name: form.display_name, locale: localStorage.getItem('lang') || 'auto' });
       setUser(d.user);
       loadGroups();
     } catch (err) {
@@ -66,7 +66,10 @@ export default function Login() {
           {error && <div style={{ marginBottom: 14 }}><Alert type="error">{error}</Alert></div>}
           {cfg?.oidc && !cfg.first_user && (
             <>
-              <a className="btn block large" href="/api/auth/oidc/start"><KeyRound size={20} />{t('Mit {name} anmelden', { name: cfg.oidc.name })}</a>
+              <a className="btn block large oidc-btn" href="/api/auth/oidc/start">
+                {/authentik/i.test(cfg.oidc.name) ? <img src="/brands/authentik.svg" alt="" width={24} height={24} /> : <KeyRound size={20} />}
+                {t('Mit {name} anmelden', { name: cfg.oidc.name })}
+              </a>
               {cfg.oidc.registration && <p className="hint center" style={{ marginTop: 8 }}>{t('Neue Konten werden dabei automatisch angelegt.')}</p>}
               <div className="or">{t('oder')}</div>
             </>

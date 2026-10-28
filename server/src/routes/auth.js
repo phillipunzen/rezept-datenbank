@@ -59,7 +59,7 @@ r.post('/register', ah(async (req, res) => {
     display_name: String(display_name || email.split('@')[0]).slice(0, 150),
     password_hash: await bcrypt.hash(String(password), 11),
     role: first ? 'admin' : 'user',
-    locale: locale === 'en' ? 'en' : 'de',
+    locale: ['de', 'en'].includes(locale) ? locale : 'auto',
   });
   const user = await knex('users').where({ id }).first();
   setSession(res, user);
@@ -151,7 +151,7 @@ r.get('/oidc/callback', async (req, res) => {
         display_name: String(claims.name || claims.preferred_username || email || 'Benutzer').slice(0, 150),
         oidc_sub: sub,
         role: first || isAdminGroup ? 'admin' : 'user',
-        locale: String(claims.locale || '').startsWith('en') ? 'en' : 'de',
+        locale: 'auto',
       });
       user = await knex('users').where({ id }).first();
     } else if (isAdminGroup && user.role !== 'admin') {

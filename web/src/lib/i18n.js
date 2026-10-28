@@ -17,4 +17,18 @@ export function useT() {
   return t;
 }
 
-export const detectLang = () => (typeof navigator !== 'undefined' && navigator.language?.startsWith('de') ? 'de' : (navigator.language ? 'en' : 'de'));
+/** Erste unterstützte Sprache aus den bevorzugten Browsersprachen (nicht der Oberflächensprache). */
+export function detectLang() {
+  if (typeof navigator === 'undefined') return 'de';
+  const list = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const l of list) {
+    const code = String(l || '').toLowerCase().slice(0, 2);
+    if (code === 'de' || code === 'en') return code;
+  }
+  return 'de';
+}
+
+/** Gespeicherte Wahl ('de' | 'en') oder automatisch erkannt. */
+export function resolveLang(pref) {
+  return pref === 'de' || pref === 'en' ? pref : detectLang();
+}

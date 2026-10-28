@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Search, Globe, Clock, Users, Printer, LogIn } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { useApp } from '../lib/app.jsx';
-import { useT, LangContext, detectLang } from '../lib/i18n.js';
+import { useT, LangContext, resolveLang } from '../lib/i18n.js';
 import { Loading, Empty, ErrorBox, useDebounced, Img } from '../components/ui.jsx';
 import RecipeCard from '../components/RecipeCard.jsx';
 import { Ingredients, TmBadge } from './RecipeDetail.jsx';
@@ -26,7 +26,7 @@ function PublicShell({ children, embedded }) {
 
 function WithLang({ children }) {
   const { user, lang } = useApp();
-  return <LangContext.Provider value={user ? lang : (localStorage.getItem('lang') || detectLang())}>{children}</LangContext.Provider>;
+  return <LangContext.Provider value={user ? lang : resolveLang(localStorage.getItem('lang'))}>{children}</LangContext.Provider>;
 }
 
 function List({ embedded }) {
