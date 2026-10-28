@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Users, KeyRound, Sparkles, Home as HomeIcon, Plus, Trash2, ShieldCheck, ShieldOff, Ban, CheckCircle2, Terminal } from 'lucide-react';
+import { Users, KeyRound, Sparkles, Home as HomeIcon, Plus, Trash2, ShieldCheck, ShieldOff, Ban, CheckCircle2, Terminal, ExternalLink, Link2 } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { useApp } from '../lib/app.jsx';
 import { useT } from '../lib/i18n.js';
@@ -55,6 +55,59 @@ function UsersTab() {
       )}
       {confirm && <Confirm title={t('Benutzer löschen?')} danger confirmLabel={t('Löschen')} text={t('{n} und alle eigenen Rezepte, Listen und Pläne werden endgültig gelöscht.', { n: confirm.display_name })} onConfirm={() => act(() => api.del(`/api/admin/users/${confirm.id}`))} onClose={() => setConfirm(null)} />}
     </>
+  );
+}
+
+/** „Mit Claude verbinden“: Anmeldelink anzeigen, Code entgegennehmen, Token speichern lassen. */
+function ClaudeConnect({ reconnect, onDone }) {
+  const t = useT();
+  const toast = useToast();
+  const [step, setStep] = useState(null); // null | 'starting' | { id, url }
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => () => { if (step?.id) api.post('/api/admin/ai/cc-login/cancel', { id: step.id }).catch(() => {}); }, [step]);
+  const start = async () => {
+    setError('');
+    setCode('');
+    setStep('starting');
+    try { setStep(await api.post('/api/admin/ai/cc-login/start')); } catch (e) { setError(e.message); setStep(null); }
+  };
+  const finish = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/api/admin/ai/cc-login/finish', { id: step.id, code });
+      setStep(null);
+      toast(t('Verbunden! Dein Claude-Abo wird jetzt für deine KI-Anfragen genutzt.'), { duration: 6000 });
+      onDone();
+    } catch (e) { setError(e.message); setStep(null); } finally { setBusy(false); }
+  };
+  if (!step) {
+    return (
+      <div className="stack">
+        <div><button className="btn primary" onClick={start}><Link2 size={18} />{reconnect ? t('Erneut mit Claude verbinden') : t('Mit Claude verbinden')}</button></div>
+        {error && <Alert type="error">{error}</Alert>}
+      </div>
+    );
+  }
+  if (step === 'starting') return <div className="row"><div className="spinner" /><span className="muted">{t('Anmeldung wird vorbereitet …')}</span></div>;
+  return (
+    <div className="card pad stack" style={{ background: 'var(--bg)' }}>
+      <div>
+        <b>1.</b> {t('Bei Claude anmelden und Zugriff erlauben:')}
+        <div className="mt"><a className="btn" href={step.url} target="_blank" rel="noreferrer"><ExternalLink size={17} />{t('Bei Claude anmelden')}</a></div>
+      </div>
+      <div>
+        <b>2.</b> {t('Danach zeigt Claude einen Code an. Kopiere ihn und füge ihn hier ein:')}
+        <div className="row wrap mt">
+          <input className="input" style={{ flex: 1, minWidth: 220 }} autoComplete="off" placeholder={t('Code von Claude')} value={code} onChange={(e) => setCode(e.target.value.trim())} onKeyDown={(e) => e.key === 'Enter' && code && finish()} />
+          <button className="btn primary" disabled={busy || !code} onClick={finish}>{busy ? t('Verbinde …') : t('Verbinden')}</button>
+          <button className="btn ghost" disabled={busy} onClick={() => setStep(null)}>{t('Abbrechen')}</button>
+        </div>
+      </div>
+      <p className="hint">{t('Der Link ist etwa 10 Minuten gültig. Das Token wird direkt verschlüsselt gespeichert und nicht angezeigt.')}</p>
+    </div>
   );
 }
 
@@ -141,15 +194,19 @@ function SettingsTabs({ tab }) {
               <button className="btn danger small mt" onClick={() => save({ ai: { cc: { remove: true } } }, t('Token entfernt'))}>{t('Token entfernen')}</button>
             </div>
           )}
-          <ol className="small" style={{ paddingLeft: 20, margin: '0 0 12px', lineHeight: 1.7 }}>
-            <li>{t('Auf einem Rechner mit Claude Code im Terminal ausführen:')} <code>claude setup-token</code></li>
-            <li>{t('Im Browser mit deinem Claude-Konto anmelden. Das Token (beginnt mit sk-ant-oat…) wird im Terminal angezeigt und ist ein Jahr gültig.')}</li>
-            <li>{t('Token hier einfügen und speichern.')}</li>
-          </ol>
-          <div className="row wrap">
-            <input className="input" style={{ flex: 1, minWidth: 240 }} type="password" autoComplete="off" placeholder={ai.cc_has_token ? t('Neues Token eingeben, um es zu ersetzen') : 'sk-ant-oat01-…'} value={ccToken} onChange={(e) => setCcToken(e.target.value)} />
-            <button className="btn primary" disabled={busy || !ccToken.trim()} onClick={async () => { await save({ ai: { cc: { token: ccToken } } }, t('Token gespeichert – teste jetzt die Verbindung.')); setCcToken(''); }}>{t('Speichern')}</button>
-          </div>
+          <ClaudeConnect reconnect={ai.cc_has_token && owner?.is_me} onDone={reload} />
+          <details className="mt">
+            <summary className="small link" style={{ cursor: 'pointer' }}>{t('Token manuell eingeben')}</summary>
+            <ol className="small" style={{ paddingLeft: 20, margin: '10px 0 12px', lineHeight: 1.7 }}>
+              <li>{t('Auf einem Rechner mit Claude Code im Terminal ausführen:')} <code>claude setup-token</code></li>
+              <li>{t('Im Browser mit deinem Claude-Konto anmelden. Das Token (beginnt mit sk-ant-oat…) wird im Terminal angezeigt und ist ein Jahr gültig.')}</li>
+              <li>{t('Token hier einfügen und speichern.')}</li>
+            </ol>
+            <div className="row wrap">
+              <input className="input" style={{ flex: 1, minWidth: 240 }} type="password" autoComplete="off" placeholder={ai.cc_has_token ? t('Neues Token eingeben, um es zu ersetzen') : 'sk-ant-oat01-…'} value={ccToken} onChange={(e) => setCcToken(e.target.value)} />
+              <button className="btn" disabled={busy || !ccToken.trim()} onClick={async () => { await save({ ai: { cc: { token: ccToken } } }, t('Token gespeichert – teste jetzt die Verbindung.')); setCcToken(''); }}>{t('Speichern')}</button>
+            </div>
+          </details>
           <div className="mt">
             <Alert type="warn">{t('Damit wirklich nur dein Abo-Kontingent genutzt wird: Schalte in den Claude-Einstellungen (claude.ai → Einstellungen → Nutzung) zusätzliche Nutzung bzw. „Usage credits“ aus. Ist dein Sitzungs- oder Wochenlimit erreicht, zeigt die App das an, statt weiterzumachen.')}</Alert>
           </div>

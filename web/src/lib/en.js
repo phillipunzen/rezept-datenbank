@@ -1,5 +1,17 @@
 // Englische Übersetzungen der Oberfläche (Schlüssel = deutscher Text).
 export default {
+  'Verbunden! Dein Claude-Abo wird jetzt für deine KI-Anfragen genutzt.': 'Connected! Your Claude subscription is now used for your AI requests.',
+  'Erneut mit Claude verbinden': 'Reconnect to Claude',
+  'Mit Claude verbinden': 'Connect to Claude',
+  'Anmeldung wird vorbereitet …': 'Preparing sign-in …',
+  'Bei Claude anmelden und Zugriff erlauben:': 'Sign in to Claude and allow access:',
+  'Bei Claude anmelden': 'Sign in to Claude',
+  'Danach zeigt Claude einen Code an. Kopiere ihn und füge ihn hier ein:': 'Claude then shows a code. Copy it and paste it here:',
+  'Code von Claude': 'Code from Claude',
+  'Verbinde …': 'Connecting …',
+  'Verbinden': 'Connect',
+  'Der Link ist etwa 10 Minuten gültig. Das Token wird direkt verschlüsselt gespeichert und nicht angezeigt.': 'The link is valid for about 10 minutes. The token is stored encrypted right away and never shown.',
+  'Token manuell eingeben': 'Enter token manually',
   'Modell (API-Schlüssel)': 'Model (API key)',
   'Claude Code antwortet – die Verbindung über dein Abo funktioniert.': 'Claude Code responded – the connection via your subscription works.',
   'Claude Code mit meinem Abo': 'Claude Code with my subscription',

@@ -9,6 +9,7 @@ import { ah, badRequest, encrypt, decrypt, notFound, toInt } from '../util.js';
 import { saveAvatar } from '../services/images.js';
 import { aiStatus, testConnection, testClaudeCode, AI_MODELS, CC_MODELS } from '../services/ai.js';
 import { haTest } from '../services/homeassistant.js';
+import { startLogin, finishLogin, cancelLogin } from '../services/claudeLogin.js';
 import { config } from '../config.js';
 
 const r = express.Router();
@@ -180,6 +181,24 @@ r.put('/admin/settings', requireAdmin, ah(async (req, res) => {
     }
     await setSetting('ha', ha);
   }
+  res.json({ ok: true });
+}));
+
+// „Mit Claude verbinden“: Anmeldung über das offizielle `claude setup-token` im Container
+r.post('/admin/ai/cc-login/start', requireAdmin, ah(async (req, res) => {
+  res.json(await startLogin(req.user.id));
+}));
+
+r.post('/admin/ai/cc-login/finish', requireAdmin, ah(async (req, res) => {
+  const tkn = await finishLogin(req.user.id, String(req.body.id || ''), req.body.code);
+  const s = await getSettings();
+  // Das Abo gehört der Person, die sich angemeldet hat – nur sie kann den Modus nutzen.
+  await setSetting('ai', { ...s.ai, cc_token_enc: encrypt(tkn), cc_owner_id: req.user.id, cc_enabled: true });
+  res.json({ ok: true });
+}));
+
+r.post('/admin/ai/cc-login/cancel', requireAdmin, ah(async (req, res) => {
+  await cancelLogin(req.user.id, String(req.body.id || ''));
   res.json({ ok: true });
 }));
 
