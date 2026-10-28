@@ -115,6 +115,7 @@ function SettingsTabs({ tab }) {
   const t = useT();
   const toast = useToast();
   const { data: s, error, loading, reload } = useApi('/api/admin/settings');
+  const users = useApi(tab === 'ai' ? '/api/admin/users' : null);
   const [aiKey, setAiKey] = useState('');
   const [ccToken, setCcToken] = useState('');
   const [ccTesting, setCcTesting] = useState(false);
@@ -163,38 +164,38 @@ function SettingsTabs({ tab }) {
       <div className="stack lg">
         <div className="card pad">
           <h3 style={{ marginBottom: 6 }}><Terminal size={18} style={{ verticalAlign: -3 }} /> {t('Claude Code mit meinem Abo')}</h3>
-          <p className="small muted" style={{ marginBottom: 14 }}>{t('Die App ruft dafür das offizielle Claude-Code-Programm im Container auf und nutzt dein Pro- oder Max-Abo statt eines API-Schlüssels. Das ist nur für dich gedacht: Der Modus steht ausschließlich der Person zur Verfügung, die das Token hinterlegt hat. Andere Benutzer nutzen – falls eingerichtet – den API-Schlüssel unten.')}</p>
-          {ai.cc_has_token && owner && (
-            <div className="row wrap" style={{ marginBottom: 12 }}>
-              <span className={`badge ${ai.cc_enabled ? 'green' : ''}`}>{ai.cc_enabled ? t('Aktiv') : t('Ausgeschaltet')}</span>
-              <span className="small">{t('Abo von {n}', { n: owner.name })}{owner.is_me ? ` (${t('du')})` : ''}</span>
-            </div>
-          )}
-          {ai.cc_has_token && owner?.is_me && (
+          <p className="small muted" style={{ marginBottom: 14 }}>{t('Die App ruft dafür das offizielle Claude-Code-Programm im Container auf und nutzt dein Pro- oder Max-Abo statt eines API-Schlüssels. Das ist nur für dich gedacht: Der Modus steht ausschließlich dem Konto zur Verfügung, dem das Abo zugeordnet ist. Andere Benutzer nutzen – falls eingerichtet – den API-Schlüssel unten.')}</p>
+          {ai.cc_has_token && (
             <div className="stack" style={{ marginBottom: 14 }}>
-              <label className="switch"><input type="checkbox" checked={ai.cc_enabled} onChange={(e) => save({ ai: { cc: { enabled: e.target.checked } } })} />{t('Für meine KI-Anfragen Claude Code mit meinem Abo verwenden')}</label>
               <div className="row wrap">
-                <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
+                <span className={`badge ${ai.cc_enabled ? 'green' : ''}`}>{ai.cc_enabled ? t('Aktiv') : t('Ausgeschaltet')}</span>
+                {owner && <span className="small">{t('Abo von {n}', { n: owner.name })}{owner.is_me ? ` (${t('du')})` : ''}</span>}
+              </div>
+              <div className="grid-2">
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label>{t('Abo gehört zu Konto')}</label>
+                  <select className="input" value={owner?.id || ''} onChange={(e) => save({ ai: { cc: { owner_id: Number(e.target.value) } } }, t('Inhaber geändert'))}>
+                    {!owner && <option value="">–</option>}
+                    {(users.data?.items || []).filter((u) => !u.disabled).map((u) => <option key={u.id} value={u.id}>{u.display_name}{u.email ? ` (${u.email})` : ''}</option>)}
+                  </select>
+                  <span className="hint">{t('Nur dieses Konto nutzt das Abo. Wähle das Konto, mit dem du die App selbst verwendest.')}</span>
+                </div>
+                <div className="field" style={{ marginBottom: 0 }}>
                   <label>{t('Modell')}</label>
                   <select className="input" value={ai.cc_model} onChange={(e) => save({ ai: { cc: { model: e.target.value } } })}>
                     {ai.cc_models.map((m) => <option key={m} value={m}>{m[0].toUpperCase() + m.slice(1)}</option>)}
                   </select>
                 </div>
-                <div style={{ alignSelf: 'flex-end' }} className="btn-row">
-                  <button className="btn" disabled={ccTesting} onClick={testCc}>{ccTesting ? t('Teste …') : t('Verbindung testen')}</button>
-                  <button className="btn danger" onClick={() => save({ ai: { cc: { remove: true } } }, t('Token entfernt'))}>{t('Token entfernen')}</button>
-                </div>
+              </div>
+              <label className="switch"><input type="checkbox" checked={ai.cc_enabled} onChange={(e) => save({ ai: { cc: { enabled: e.target.checked } } })} />{t('Claude Code mit diesem Abo verwenden')}</label>
+              <div className="btn-row">
+                <button className="btn" disabled={ccTesting} onClick={testCc}>{ccTesting ? t('Teste …') : t('Verbindung testen')}</button>
+                <button className="btn danger" onClick={() => save({ ai: { cc: { remove: true } } }, t('Token entfernt'))}>{t('Token entfernen')}</button>
               </div>
               <p className="hint">{t('Der Test schickt eine winzige Anfrage („Antworte nur mit OK“) und verbraucht dafür einen sehr kleinen Teil deines Kontingents.')}</p>
             </div>
           )}
-          {ai.cc_has_token && owner && !owner.is_me && (
-            <div style={{ marginBottom: 12 }}>
-              <Alert type="info">{t('Dieses Abo gehört {n} und kann nur von dieser Person genutzt und eingeschaltet werden. Du kannst das Token entfernen oder ein eigenes hinterlegen (es ersetzt das bisherige).', { n: owner.name })}</Alert>
-              <button className="btn danger small mt" onClick={() => save({ ai: { cc: { remove: true } } }, t('Token entfernt'))}>{t('Token entfernen')}</button>
-            </div>
-          )}
-          <ClaudeConnect reconnect={ai.cc_has_token && owner?.is_me} onDone={reload} />
+          <ClaudeConnect reconnect={ai.cc_has_token} onDone={reload} />
           <details className="mt">
             <summary className="small link" style={{ cursor: 'pointer' }}>{t('Token manuell eingeben')}</summary>
             <ol className="small" style={{ paddingLeft: 20, margin: '10px 0 12px', lineHeight: 1.7 }}>

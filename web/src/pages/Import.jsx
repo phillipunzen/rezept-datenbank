@@ -27,7 +27,7 @@ function AiNotice({ status }) {
     not_shared: t('Die KI-Verbindung ist nur für Administratoren freigegeben.'),
     monthly_limit: t('Das monatliche KI-Kontingent ist aufgebraucht. Es wird zu Monatsbeginn zurückgesetzt.'),
     daily_limit: t('Dein tägliches KI-Kontingent ist erreicht. Morgen geht es weiter.'),
-    cc_owner_only: t('Die KI-Erkennung nutzt das persönliche Claude-Abo des Administrators und steht nur ihm zur Verfügung.'),
+    cc_owner_only: t('Das verbundene Claude-Abo ist einem anderen Konto zugeordnet. Ein Administrator kann unter Administration → KI-Verbindung festlegen, zu welchem Konto es gehört.'),
   }[status.reason];
   return <Alert type="warn">{text}</Alert>;
 }

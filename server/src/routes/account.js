@@ -162,8 +162,13 @@ r.put('/admin/settings', requireAdmin, ah(async (req, res) => {
         ai.cc_enabled = true;
       }
       if ('enabled' in cc) {
-        if (cc.enabled && ai.cc_owner_id !== req.user.id) throw badRequest('Nur die Person, deren Abo hinterlegt ist, kann den Modus einschalten.');
         ai.cc_enabled = !!cc.enabled && !!ai.cc_token_enc;
+      }
+      if ('owner_id' in cc && ai.cc_token_enc) {
+        // Admin legt fest, welchem Konto das Abo gehört (z. B. eigenes Konto statt Einrichtungs-Admin).
+        const u = await knex('users').where({ id: toInt(cc.owner_id) }).first();
+        if (!u || u.disabled) throw badRequest('Dieses Konto gibt es nicht oder es ist deaktiviert.');
+        ai.cc_owner_id = u.id;
       }
       if (cc.remove) { ai.cc_token_enc = null; ai.cc_owner_id = null; ai.cc_enabled = false; }
     }
@@ -204,7 +209,6 @@ r.post('/admin/ai/cc-login/cancel', requireAdmin, ah(async (req, res) => {
 
 r.post('/admin/ai/test-cc', requireAdmin, ah(async (req, res) => {
   const s = await getSettings();
-  if (s.ai.cc_owner_id !== req.user.id) throw badRequest('Nur die Person, deren Abo hinterlegt ist, kann es testen.');
   res.json(await testClaudeCode(req.user));
 }));
 

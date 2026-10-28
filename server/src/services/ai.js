@@ -83,7 +83,7 @@ const REASON_TEXT = {
   not_shared: 'Die KI-Verbindung ist nur für Administratoren freigegeben.',
   monthly_limit: 'Das monatliche KI-Kontingent dieser Installation ist aufgebraucht. Es wird zu Monatsbeginn zurückgesetzt.',
   daily_limit: 'Du hast dein tägliches KI-Kontingent erreicht. Morgen geht es weiter.',
-  cc_owner_only: 'Die KI-Verbindung nutzt das persönliche Claude-Abo des Administrators und steht deshalb nur ihm zur Verfügung.',
+  cc_owner_only: 'Die KI-Verbindung nutzt ein persönliches Claude-Abo, das einem anderen Konto zugeordnet ist. Ein Administrator kann unter Administration → KI-Verbindung festlegen, zu welchem Konto das Abo gehört.',
 };
 
 /** Übersetzt API-Fehler in verständliche Meldungen. */
