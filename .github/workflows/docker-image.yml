@@ -110,4 +110,5 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.publish.outputs.digest }}
-        run: echo "### Published image: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "### Published image: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
