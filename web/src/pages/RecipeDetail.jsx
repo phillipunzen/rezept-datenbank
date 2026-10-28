@@ -3,11 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ChefHat, Heart, CalendarPlus, ShoppingCart, MoreHorizontal, Pencil, Copy, Trash2, Printer, History, Share2,
   Library, Clock, Users, Gauge, Minus, Plus, ChevronLeft, ChevronRight, Thermometer, RotateCcw, Timer, Download,
-  CloudOff, Cloud, Globe, ExternalLink, Wand2, UserPen, Lock,
+  CloudOff, Cloud, Globe, ExternalLink, Wand2, UserPen, Lock, ClipboardCopy,
 } from 'lucide-react';
 import { api, cacheRecipeOffline } from '../lib/api.js';
 import { useT } from '../lib/i18n.js';
 import { useApi, Loading, ErrorBox, Menu, Stars, Confirm, useToast } from '../components/ui.jsx';
+import CookidooDialog from '../components/CookidooDialog.jsx';
 import { AddToPlanDialog, AddToShoppingDialog, CookbookDialog, ShareDialog, CookLog } from '../components/dialogs.jsx';
 import { formatAmount, formatMinutes, formatSeconds, tmTemp, TM_MODES, formatDateTime } from '../lib/format.js';
 import { applyVariant } from '../lib/recipe.js';
@@ -174,6 +175,7 @@ export default function RecipeDetail() {
           <Menu trigger={({ toggle }) => <button className="btn icon" onClick={toggle} aria-label={t('Weitere Aktionen')}><MoreHorizontal size={20} /></button>}>
             {canEdit && <button onClick={() => navigate(`/recipes/${recipe.id}/edit`)}><Pencil size={17} />{t('Bearbeiten')}</button>}
             {canEdit && <button onClick={() => navigate(`/recipes/${recipe.id}/thermomix`)}><Wand2 size={17} />{t('Für Thermomix vorbereiten')}</button>}
+            <button onClick={() => setDialog('cookidoo')}><ClipboardCopy size={17} />{t('Für Cookidoo kopieren')}</button>
             <button onClick={() => navigate(`/recipes/${recipe.id}/variant`)}><UserPen size={17} />{hasVariant ? t('Meine Version bearbeiten') : t('Persönlich anpassen')}</button>
             <button onClick={() => setDialog('books')}><Library size={17} />{t('Zu Rezeptbuch hinzufügen')}</button>
             <button onClick={duplicate}><Copy size={17} />{t('Duplizieren')}</button>
@@ -269,6 +271,7 @@ export default function RecipeDetail() {
 
       {dialog === 'plan' && <AddToPlanDialog recipe={{ ...recipe, servings: current }} onClose={closeDialog} />}
       {dialog === 'shop' && <AddToShoppingDialog recipe={{ ...recipe, servings: view.servings }} ingredients={useVariant && hasVariant ? view.ingredients : null} servings={current} onClose={closeDialog} />}
+      {dialog === 'cookidoo' && <CookidooDialog recipe={view} onClose={() => setDialog(null)} />}
       {dialog === 'books' && <CookbookDialog recipe={recipe} onClose={closeDialog} />}
       {dialog === 'share' && <ShareDialog recipe={recipe} onClose={closeDialog} />}
       {dialog === 'delete' && <Confirm title={t('Rezept löschen?')} text={t('Das Rezept wird in den Papierkorb verschoben und kann dort wiederhergestellt werden.')} danger confirmLabel={t('In den Papierkorb')} onConfirm={remove} onClose={() => setDialog(null)} />}
