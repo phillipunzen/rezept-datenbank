@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Users, KeyRound, Sparkles, Home as HomeIcon, Plus, Trash2, ShieldCheck, ShieldOff, Ban, CheckCircle2 } from 'lucide-react';
+import { Users, KeyRound, Sparkles, Home as HomeIcon, Plus, Trash2, ShieldCheck, ShieldOff, Ban, CheckCircle2, Terminal } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { useApp } from '../lib/app.jsx';
 import { useT } from '../lib/i18n.js';
@@ -63,6 +63,8 @@ function SettingsTabs({ tab }) {
   const toast = useToast();
   const { data: s, error, loading, reload } = useApi('/api/admin/settings');
   const [aiKey, setAiKey] = useState('');
+  const [ccToken, setCcToken] = useState('');
+  const [ccTesting, setCcTesting] = useState(false);
   const [ai, setAi] = useState(null);
   const [ha, setHa] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -95,13 +97,68 @@ function SettingsTabs({ tab }) {
 
   if (tab === 'ai') {
     const st = s.ai_status;
+    const owner = ai.cc_owner;
+    const testCc = async () => {
+      setCcTesting(true);
+      try {
+        const r = await api.post('/api/admin/ai/test-cc');
+        toast(r.ok ? t('Claude Code antwortet – die Verbindung über dein Abo funktioniert.') : r.error, { type: r.ok ? '' : 'error', duration: 7000 });
+        reload();
+      } catch (e) { toast(e.message, { type: 'error' }); } finally { setCcTesting(false); }
+    };
     return (
       <div className="stack lg">
         <div className="card pad">
-          <h3 style={{ marginBottom: 6 }}><Sparkles size={18} style={{ verticalAlign: -3 }} /> {t('Zentrale Claude-Verbindung')}</h3>
+          <h3 style={{ marginBottom: 6 }}><Terminal size={18} style={{ verticalAlign: -3 }} /> {t('Claude Code mit meinem Abo')}</h3>
+          <p className="small muted" style={{ marginBottom: 14 }}>{t('Die App ruft dafür das offizielle Claude-Code-Programm im Container auf und nutzt dein Pro- oder Max-Abo statt eines API-Schlüssels. Das ist nur für dich gedacht: Der Modus steht ausschließlich der Person zur Verfügung, die das Token hinterlegt hat. Andere Benutzer nutzen – falls eingerichtet – den API-Schlüssel unten.')}</p>
+          {ai.cc_has_token && owner && (
+            <div className="row wrap" style={{ marginBottom: 12 }}>
+              <span className={`badge ${ai.cc_enabled ? 'green' : ''}`}>{ai.cc_enabled ? t('Aktiv') : t('Ausgeschaltet')}</span>
+              <span className="small">{t('Abo von {n}', { n: owner.name })}{owner.is_me ? ` (${t('du')})` : ''}</span>
+            </div>
+          )}
+          {ai.cc_has_token && owner?.is_me && (
+            <div className="stack" style={{ marginBottom: 14 }}>
+              <label className="switch"><input type="checkbox" checked={ai.cc_enabled} onChange={(e) => save({ ai: { cc: { enabled: e.target.checked } } })} />{t('Für meine KI-Anfragen Claude Code mit meinem Abo verwenden')}</label>
+              <div className="row wrap">
+                <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
+                  <label>{t('Modell')}</label>
+                  <select className="input" value={ai.cc_model} onChange={(e) => save({ ai: { cc: { model: e.target.value } } })}>
+                    {ai.cc_models.map((m) => <option key={m} value={m}>{m[0].toUpperCase() + m.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div style={{ alignSelf: 'flex-end' }} className="btn-row">
+                  <button className="btn" disabled={ccTesting} onClick={testCc}>{ccTesting ? t('Teste …') : t('Verbindung testen')}</button>
+                  <button className="btn danger" onClick={() => save({ ai: { cc: { remove: true } } }, t('Token entfernt'))}>{t('Token entfernen')}</button>
+                </div>
+              </div>
+              <p className="hint">{t('Der Test schickt eine winzige Anfrage („Antworte nur mit OK“) und verbraucht dafür einen sehr kleinen Teil deines Kontingents.')}</p>
+            </div>
+          )}
+          {ai.cc_has_token && owner && !owner.is_me && (
+            <div style={{ marginBottom: 12 }}>
+              <Alert type="info">{t('Dieses Abo gehört {n} und kann nur von dieser Person genutzt und eingeschaltet werden. Du kannst das Token entfernen oder ein eigenes hinterlegen (es ersetzt das bisherige).', { n: owner.name })}</Alert>
+              <button className="btn danger small mt" onClick={() => save({ ai: { cc: { remove: true } } }, t('Token entfernt'))}>{t('Token entfernen')}</button>
+            </div>
+          )}
+          <ol className="small" style={{ paddingLeft: 20, margin: '0 0 12px', lineHeight: 1.7 }}>
+            <li>{t('Auf einem Rechner mit Claude Code im Terminal ausführen:')} <code>claude setup-token</code></li>
+            <li>{t('Im Browser mit deinem Claude-Konto anmelden. Das Token (beginnt mit sk-ant-oat…) wird im Terminal angezeigt und ist ein Jahr gültig.')}</li>
+            <li>{t('Token hier einfügen und speichern.')}</li>
+          </ol>
+          <div className="row wrap">
+            <input className="input" style={{ flex: 1, minWidth: 240 }} type="password" autoComplete="off" placeholder={ai.cc_has_token ? t('Neues Token eingeben, um es zu ersetzen') : 'sk-ant-oat01-…'} value={ccToken} onChange={(e) => setCcToken(e.target.value)} />
+            <button className="btn primary" disabled={busy || !ccToken.trim()} onClick={async () => { await save({ ai: { cc: { token: ccToken } } }, t('Token gespeichert – teste jetzt die Verbindung.')); setCcToken(''); }}>{t('Speichern')}</button>
+          </div>
+          <div className="mt">
+            <Alert type="warn">{t('Damit wirklich nur dein Abo-Kontingent genutzt wird: Schalte in den Claude-Einstellungen (claude.ai → Einstellungen → Nutzung) zusätzliche Nutzung bzw. „Usage credits“ aus. Ist dein Sitzungs- oder Wochenlimit erreicht, zeigt die App das an, statt weiterzumachen.')}</Alert>
+          </div>
+        </div>
+        <div className="card pad">
+          <h3 style={{ marginBottom: 6 }}><Sparkles size={18} style={{ verticalAlign: -3 }} /> {t('API-Schlüssel (für alle Benutzer)')}</h3>
           <p className="small muted" style={{ marginBottom: 14 }}>{t('Hinterlege einmal einen Zugang. Alle freigegebenen Benutzer nutzen ihn für die Rezepterkennung aus Fotos und Webseiten, ohne ihn zu sehen.')}</p>
           <Alert type="info">
-            {t('Anthropic erlaubt die Anmeldung mit einem Claude-Abo (Pro/Max) per OAuth nur in Anthropics eigenen Anwendungen, nicht in Drittanwendungen wie dieser. Die Verbindung erfolgt daher über einen API-Schlüssel aus der Claude Console (console.anthropic.com). Die Abrechnung erfolgt dort nach Nutzung – über die Limits unten bestimmst du, wie viele Anfragen höchstens möglich sind.')}
+            {t('Ein API-Schlüssel aus der Claude Console (console.anthropic.com) wird nach Nutzung abgerechnet und darf – anders als ein Abo – auch für andere Benutzer dieser App verwendet werden. Über die Limits unten bestimmst du, wie viele Anfragen höchstens möglich sind.')}
           </Alert>
           <div className="mt">
             {ai.has_key ? (
@@ -121,16 +178,17 @@ function SettingsTabs({ tab }) {
         <div className="card pad">
           <h3 style={{ marginBottom: 12 }}>{t('Freigabe & Limits')}</h3>
           <div className="stack">
-            <label className="switch"><input type="checkbox" checked={ai.enabled} onChange={(e) => setAi({ ...ai, enabled: e.target.checked })} />{t('KI-Funktionen aktiviert')}</label>
+            <label className="switch"><input type="checkbox" checked={ai.enabled} onChange={(e) => setAi({ ...ai, enabled: e.target.checked })} />{t('API-Schlüssel aktiviert')}</label>
             <label className="switch"><input type="checkbox" checked={ai.shared} onChange={(e) => setAi({ ...ai, shared: e.target.checked })} />{t('Für alle Benutzer freigeben (sonst nur Administratoren)')}</label>
           </div>
           <div className="grid-3 mt">
-            <div className="field"><label>{t('Modell')}</label>
+            <div className="field"><label>{t('Modell (API-Schlüssel)')}</label>
               <select className="input" value={ai.model} onChange={(e) => setAi({ ...ai, model: e.target.value })}>{ai.models.map((m) => <option key={m}>{m}</option>)}</select>
             </div>
             <div className="field"><label>{t('Max. Anfragen pro Monat (alle)')}</label><input className="input" type="number" min="0" value={ai.monthly_limit} onChange={(e) => setAi({ ...ai, monthly_limit: e.target.value })} /><span className="hint">{t('0 = unbegrenzt')}</span></div>
             <div className="field"><label>{t('Max. Anfragen pro Person und Tag')}</label><input className="input" type="number" min="0" value={ai.per_user_daily_limit} onChange={(e) => setAi({ ...ai, per_user_daily_limit: e.target.value })} /><span className="hint">{t('0 = unbegrenzt')}</span></div>
           </div>
+          <p className="hint" style={{ marginBottom: 10 }}>{t('Die Limits gelten für beide Wege (Abo und API-Schlüssel).')}</p>
           <button className="btn primary" disabled={busy} onClick={() => save({ ai: { enabled: ai.enabled, shared: ai.shared, model: ai.model, monthly_limit: ai.monthly_limit, per_user_daily_limit: ai.per_user_daily_limit } })}>{t('Speichern')}</button>
           <p className="hint mt">{t('Anfragen entstehen nur, wenn jemand ausdrücklich „Rezept erkennen“ oder „Mit KI auslesen“ wählt. Es gibt keine automatischen Wiederholungen oder Hintergrundanfragen.')}</p>
         </div>

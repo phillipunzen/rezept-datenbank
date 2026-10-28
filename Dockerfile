@@ -1,5 +1,5 @@
 # ---------- Frontend bauen ----------
-FROM node:20-bookworm-slim AS web
+FROM node:22-bookworm-slim AS web
 WORKDIR /app/web
 COPY web/package*.json ./
 RUN npm ci --no-audit --no-fund
@@ -7,20 +7,27 @@ COPY web/ ./
 RUN npm run build
 
 # ---------- Server-Abhängigkeiten ----------
-FROM node:20-bookworm-slim AS server-deps
+FROM node:22-bookworm-slim AS server-deps
 WORKDIR /app/server
 COPY server/package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 # ---------- Laufzeit ----------
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
+ARG CLAUDE_CODE_VERSION=2.1.312
 ENV NODE_ENV=production \
     PORT=3000 \
     DATA_DIR=/data \
-    WEB_DIR=/app/web/dist
+    WEB_DIR=/app/web/dist \
+    DISABLE_AUTOUPDATER=1 \
+    DISABLE_UPDATES=1 \
+    DISABLE_TELEMETRY=1
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates curl && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p /data && chown node:node /data
+  && mkdir -p /data && chown node:node /data \
+  # Claude Code CLI für den optionalen Modus „Claude Code mit eigenem Abo“ (feste Version, keine Auto-Updates)
+  && npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} --no-audit --no-fund \
+  && npm cache clean --force
 COPY --from=server-deps /app/server/node_modules ./server/node_modules
 COPY server/ ./server/
 COPY --from=web /app/web/dist ./web/dist

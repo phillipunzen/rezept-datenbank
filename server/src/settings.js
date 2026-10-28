@@ -4,7 +4,11 @@ const defaults = {
   registration_local: true,
   registration_oidc: true,
   oidc_link_by_email: true,
-  ai: { enabled: false, shared: true, model: 'claude-opus-5-5', monthly_limit: 100, per_user_daily_limit: 20, api_key_enc: null },
+  ai: {
+    enabled: false, shared: true, model: 'claude-opus-5-5', monthly_limit: 100, per_user_daily_limit: 20, api_key_enc: null,
+    // Claude Code mit eigenem Abo – nur für cc_owner_id nutzbar
+    cc_enabled: false, cc_token_enc: null, cc_owner_id: null, cc_model: 'opus',
+  },
   ha: { url: '', token_enc: null, poll_seconds: 30 },
 };
 

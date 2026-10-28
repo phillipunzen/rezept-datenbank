@@ -87,6 +87,8 @@ jobs:
           curl -fsS -H 'Content-Type: application/json' -X POST http://127.0.0.1:8080/api/auth/login \
             -d '{"login":"ci@example.org","password":"ci-password-123"}' | grep -q '"role":"admin"'
           docker exec image-app sh -c '! command -v mariadbd && ! command -v mysqld'
+          # Claude Code für den Abo-Modus ist enthalten (nur Versionsabfrage, keine Anmeldung, keine Anfrage)
+          docker exec image-app claude --version
       - name: Sign in to GitHub Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

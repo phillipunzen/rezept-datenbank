@@ -7,7 +7,7 @@ import { requireAuth, requireAdmin, publicUser, setSession } from '../auth.js';
 import { getSettings, setSetting } from '../settings.js';
 import { ah, badRequest, encrypt, decrypt, notFound, toInt } from '../util.js';
 import { saveAvatar } from '../services/images.js';
-import { aiStatus, testConnection, AI_MODELS } from '../services/ai.js';
+import { aiStatus, testConnection, testClaudeCode, AI_MODELS, CC_MODELS } from '../services/ai.js';
 import { haTest } from '../services/homeassistant.js';
 import { config } from '../config.js';
 
@@ -112,6 +112,7 @@ r.delete('/admin/users/:id', requireAdmin, ah(async (req, res) => {
 
 r.get('/admin/settings', requireAdmin, ah(async (req, res) => {
   const s = await getSettings();
+  const ccOwner = s.ai.cc_owner_id ? await knex('users').where({ id: s.ai.cc_owner_id }).select('id', 'display_name').first() : null;
   res.json({
     registration_local: !!s.registration_local,
     registration_oidc: !!s.registration_oidc,
@@ -119,7 +120,12 @@ r.get('/admin/settings', requireAdmin, ah(async (req, res) => {
     oidc_configured: !!(config.oidc.issuer && config.oidc.clientId),
     oidc_issuer: config.oidc.issuer || null,
     oidc_redirect: `${config.appUrl}/api/auth/oidc/callback`,
-    ai: { ...s.ai, api_key_enc: undefined, has_key: !!s.ai.api_key_enc, key_hint: s.ai.api_key_enc ? `…${(decrypt(s.ai.api_key_enc) || '').slice(-4)}` : null, models: AI_MODELS },
+    ai: {
+      ...s.ai, api_key_enc: undefined, cc_token_enc: undefined,
+      has_key: !!s.ai.api_key_enc, key_hint: s.ai.api_key_enc ? `…${(decrypt(s.ai.api_key_enc) || '').slice(-4)}` : null, models: AI_MODELS,
+      cc_has_token: !!s.ai.cc_token_enc, cc_models: CC_MODELS,
+      cc_owner: ccOwner ? { id: ccOwner.id, name: ccOwner.display_name, is_me: ccOwner.id === req.user.id } : null,
+    },
     ai_status: await aiStatus(req.user),
     ha: { url: s.ha.url, poll_seconds: s.ha.poll_seconds, has_token: !!s.ha.token_enc },
   });
@@ -143,6 +149,23 @@ r.put('/admin/settings', requireAdmin, ah(async (req, res) => {
       ai.enabled = true;
     }
     if (b.ai.remove_key) { ai.api_key_enc = null; ai.enabled = false; }
+    if (b.ai.cc) {
+      const cc = b.ai.cc;
+      if (CC_MODELS.includes(cc.model)) ai.cc_model = cc.model;
+      if (cc.token) {
+        const tkn = String(cc.token).trim();
+        if (!/^sk-ant-oat\d*-[\w-]{20,}$/.test(tkn)) throw badRequest('Das sieht nicht wie ein Token aus „claude setup-token“ aus (beginnt mit sk-ant-oat…).');
+        // Das Abo gehört der Person, die das Token hinterlegt – nur sie kann den Modus nutzen.
+        ai.cc_token_enc = encrypt(tkn);
+        ai.cc_owner_id = req.user.id;
+        ai.cc_enabled = true;
+      }
+      if ('enabled' in cc) {
+        if (cc.enabled && ai.cc_owner_id !== req.user.id) throw badRequest('Nur die Person, deren Abo hinterlegt ist, kann den Modus einschalten.');
+        ai.cc_enabled = !!cc.enabled && !!ai.cc_token_enc;
+      }
+      if (cc.remove) { ai.cc_token_enc = null; ai.cc_owner_id = null; ai.cc_enabled = false; }
+    }
     await setSetting('ai', ai);
   }
   if (b.ha) {
@@ -158,6 +181,12 @@ r.put('/admin/settings', requireAdmin, ah(async (req, res) => {
     await setSetting('ha', ha);
   }
   res.json({ ok: true });
+}));
+
+r.post('/admin/ai/test-cc', requireAdmin, ah(async (req, res) => {
+  const s = await getSettings();
+  if (s.ai.cc_owner_id !== req.user.id) throw badRequest('Nur die Person, deren Abo hinterlegt ist, kann es testen.');
+  res.json(await testClaudeCode(req.user));
 }));
 
 r.post('/admin/ai/test', requireAdmin, ah(async (req, res) => {

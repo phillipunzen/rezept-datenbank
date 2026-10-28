@@ -13,6 +13,9 @@ function AiNotice({ status }) {
   const t = useT();
   if (!status) return null;
   if (status.available) {
+    if (status.provider === 'claude_code') {
+      return <p className="hint">{t('Nutzt Claude Code mit deinem Claude-Abo. Heute genutzt: {d}{dl}', { d: status.used_today, dl: status.per_user_daily_limit ? ` / ${status.per_user_daily_limit}` : '' })}</p>;
+    }
     return <p className="hint">{t('Nutzt die zentrale Claude-Verbindung. Heute genutzt: {d}{dl} · Monat: {m}{ml}', {
       d: status.used_today, dl: status.per_user_daily_limit ? ` / ${status.per_user_daily_limit}` : '',
       m: status.used_month, ml: status.monthly_limit ? ` / ${status.monthly_limit}` : '',
@@ -24,6 +27,7 @@ function AiNotice({ status }) {
     not_shared: t('Die KI-Verbindung ist nur für Administratoren freigegeben.'),
     monthly_limit: t('Das monatliche KI-Kontingent ist aufgebraucht. Es wird zu Monatsbeginn zurückgesetzt.'),
     daily_limit: t('Dein tägliches KI-Kontingent ist erreicht. Morgen geht es weiter.'),
+    cc_owner_only: t('Die KI-Erkennung nutzt das persönliche Claude-Abo des Administrators und steht nur ihm zur Verfügung.'),
   }[status.reason];
   return <Alert type="warn">{text}</Alert>;
 }
